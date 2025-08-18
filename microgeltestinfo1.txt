@@ -1,0 +1,25 @@
+N: 108
+n monomers: 200000.0
+n chains: 100.0
+interaction parameter: 0.5
+B: 15000.0
+Z: 1000.0
+dry radius [nm]: 10.0
+gamma: 0.07139999999999999
+csalt [microM]: 0.0
+kappa * (dry radius): 1.4635573101180561
+reservoir swelling ratio: 2.3006051659584044
+mean swelling ratio: 3.1929577777777762
+dry volume fraction: 0.01
+reservoir volume fraction: 0.12176606510939782
+actual volume fraction: 0.3257403002708303
+box length / dry radius: 35.631774804909234
+steps: 15000
+delay: 5000.0
+snapshot delay: 100
+tolerance: 0.1
+radius tolerance: 0.05
+size bin width: 0.001
+rad bin width: 0.005
+mean energy: -97687.67416958557
+mean pressure: 160.5141353349464

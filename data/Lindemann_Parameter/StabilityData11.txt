@@ -1,0 +1,30 @@
+#Number of particles: 32
+#Initial configuration: FCC
+#Dry microgel radius [nm]: 50.0
+#Box length [units of dry radius]: 51.17755447140035
+#Number of monomers: 2916666.666666667
+#Number of chains: 2041.6666666666672
+#Flory interaction parameter (chi): 0.0
+#Young's calibration factor: 1.0
+#Minimum x-link fraction: 7.000000000000001E-4
+#Maximum x-link fraction: 7.000000000000001E-4
+#x-link fraction increment: 1.0E-4
+#Reservoir swelling ratio: 3.7584076762199405
+#Mean swelling ratio: 3.7587718749999994
+#Dry volume fraction: 0.001
+#Reservoir volume fraction: 0.0530898696863276
+#Actual volume fraction: 0.05312736477633553
+#MC steps: 2000
+#Equilibration steps: 1000.0
+#Snapshot interval: 100
+#Displacement tolerance: 0.1
+#Particle radius change tolerance: 0.05
+#Particle radius bin width: 0.001
+#g(r) bin width: 0.005
+#Mean pair energy <E_pair>/N [kT]: 0.0
+#The coupling constant increment - dlambda: 0.0
+#phi0,		   phi,       	   <alpha>,      		zeta, 	 	 	  lindemannParameter
+0.001, 0.11120592452684755, 4.808865624999999, 0.11118061337315238, 0.13094907265473457
+0.001, 0.08746002025614952, 4.43884375, 0.08745873574891734, 0.11774586102342433
+0.001, 0.07381546610802839, 4.1948437499999995, 0.0737948371893645, 0.11274335810984078
+0.001, 0.06471046285087481, 4.014746874999999, 0.0647014948352258, 0.10143375936768073
