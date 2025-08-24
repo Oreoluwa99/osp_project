@@ -7,7 +7,7 @@ Number of chains: 2916.666666666667
 Flory interaction parameter (chi): 0.0
 Young's calibration factor: 1.0
 x-link fraction: 0.001
-Reservoir swelling ratio: 3.505574023723603
+Reservoir swelling ratio: 3.5055745959281923
 Mean swelling ratio: 3.505
 DryVolFrac increment: 1.0E-4
 MC steps: 20000
@@ -17,7 +17,7 @@ Displacement tolerance: 0.1
 Particle radius change tolerance: 0.0
 Particle radius bin width: 0.001
 g(r) bin width: 0.005
-Mean pair energy <E_pair>/N [kT]: 0.2726257280743391
-Mean pressure PV/NkT: 1.0
+Mean pair energy <E_pair>/N [kT]: 0.6034325705143327
+Mean pressure PV/NkT: 20.014390811739464
 
 Mean free energy per particle <F>/N [kT]: 0.0

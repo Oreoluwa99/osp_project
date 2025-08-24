@@ -1,5 +1,5 @@
 /**
- * HertzSpheresFCCNearestNeighbors.java
+ * HertzSpheresNonLocalFacetNearestNeighbors.java
  * 
  * This class simulates microgel particles arranged on a Face-Centered Cubic (FCC) lattice incorporating the non-local facet algorithm.
  * It performs Monte Carlo simulations where each microgel interacts only with its 12 nearest neighbors.
@@ -34,7 +34,7 @@ import org.opensourcephysics.numerics.Root;
 import org.opensourcephysics.numerics.Function;
 
 
-public class HertzSpheresFCCNearestNeighbors {
+public class HertzSpheresNonLocalFacetNearestNeighbors {
    public int N; // number of particles
     public String initConfig; // initial configuration of particles
     public int nx; // number of columns and rows in initial crystal lattice
@@ -398,9 +398,9 @@ public class HertzSpheresFCCNearestNeighbors {
       calculateTotalEnergy(lambda); // initial energy
    }
 
-  /**
-   * Place particles at positions randomly displaced from sites of a BCC lattice.
-   */
+   /**
+    * Place particles at positions randomly displaced from sites of a BCC lattice.
+    */
    public void setBCCrandomPositions() {
       System.out.println("random BCC");
       int ix, iy, iz;
@@ -429,292 +429,292 @@ public class HertzSpheresFCCNearestNeighbors {
       calculateTotalEnergy(lambda); // initial energy
    }
 
-   /**
-    * Do a Monte Carlo simulation step.
-    */
-   public void step() { // performs a trial move of every particle
-      steps++;
-      double dxtrial, dytrial, dztrial, datrial;
-      double HertzEnergy;
-      double xij, yij, zij, de, r, r2, sigma;
-      double mixF, elasticF, totalF;
-      double capVolForI;
-      double da2;
-      double totalFRBeforeMove, totalFRAfterMove;
-      int i,j;
-      double dFlory;
-      double capVolForJ;
-      double floryRehnerFR;
-      boolean isFirstIteration, isSecondIteration;
-      boolean overlap=false;
-      double newNMon;
-      double newSWR;
-      double capVolSumBeforeMoveJ, capVolSumAfterMoveI, capVolSumBeforeMoveI, capVolSumAfterMoveJ;
+      /**
+       * Do a Monte Carlo simulation step.
+      */
+      public void step() { // performs a trial move of every particle
+         steps++;
+         double dxtrial, dytrial, dztrial, datrial;
+         double HertzEnergy;
+         double xij, yij, zij, de, r, r2, sigma;
+         double mixF, elasticF, totalF;
+         double capVolForI;
+         double da2;
+         double totalFRBeforeMove, totalFRAfterMove;
+         int i,j;
+         double dFlory;
+         double capVolForJ;
+         double floryRehnerFR;
+         boolean isFirstIteration, isSecondIteration;
+         boolean overlap=false;
+         double newNMon;
+         double newSWR;
+         double capVolSumBeforeMoveJ, capVolSumAfterMoveI, capVolSumBeforeMoveI, capVolSumAfterMoveJ;
 
-      // Compute total cap volumes and FR free energy for all microgels before the move
-      for (i = 0; i < N; i++) {
-        capVolSumBeforeMoveI = 0;
-        //capVolSumBeforeMoveArray[i] = 0;
-        volOfMicrogel[i] = (4.0 / 3.0) * Math.PI * Math.pow(a[i], 3);
-
-         // consider interactions with other microgels
-         for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) { // loop through exactly 12 nearest neigbours of particle i
-            // nearestNeighbors[i] contains the indices of the 12 closest particles to particle i
-            j = nearestNeighbors[i][neighborIdx];
-
-               volOfMicrogel[j] = (4.0 / 3.0) * Math.PI * Math.pow(a[j], 3);
-               xij = PBC.separation(x[i] - x[j], side);
-               yij = PBC.separation(y[i] - y[j], side);
-               zij = PBC.separation(z[i] - z[j], side);
-
-               r2 = xij * xij + yij * yij + zij * zij;
-               sigma = a[i] + a[j];
-
-               // if the microgels are overlapping
-               if (r2 < sigma * sigma) {
-                  r = Math.sqrt(r2);
-                  double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
-                  double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
-                  // the individual caps of the microgels
-                  capVolForI = (Math.PI*Math.pow(hi, 2)*(3.0*a[i]-hi))/3.0;
-                  capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0; 
-                  capVolSumBeforeMoveI += capVolForI;
-                  //capVolJBeforeMove[j] = capVolForJ;
-                  capVolBeforeTrialMove[i][j] = capVolForJ;
-                  capVolBeforeTrialMove[j][i] = capVolForI; 
-               }
-               else{ //if they are not overlapping
-                  capVolBeforeTrialMove[i][j] = 0;
-                  capVolBeforeTrialMove[j][i] = 0;
-               }
-            
-         }
-         capVolSumBeforeMoveArray[i] = capVolSumBeforeMoveI;
-         // new swelling ratio
-         newSWR = a[i] * Math.pow(((volOfMicrogel[i] - capVolSumBeforeMoveArray[i]) / volOfMicrogel[i]), 1.0 / 3.0);
-         mixF = nMon*((newSWR*newSWR*newSWR-1)*Math.log(1-1/(newSWR*newSWR*newSWR))+chi*(1-1/(newSWR*newSWR*newSWR)));
-         elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
-         // the Flory-Rehner free energy before the move for each microgel
-         floryFRBeforeMove[i] = mixF + elasticF;
-      }
-
-      for (i = 0; i < N; i++) {
-         
-         // Update the old free energy for the current state before making the trial move
-         double oldFreeEnergyI = floryFRBeforeMove[i];
-
-         dxtrial = tolerance*2.*(Math.random()-0.5);
-         dytrial = tolerance*2.*(Math.random()-0.5);
-         dztrial = tolerance*2.*(Math.random()-0.5);
-         datrial = atolerance*2.*(Math.random()-0.5);
-
-         // Euclidean distance of trial displacements
-         trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
- 
-         x[i] += dxtrial; // trial displacement 
-         y[i] += dytrial;                       
-         z[i] += dztrial;
-         a[i] += datrial; // trial radius change
-
-         //the Euclidean distance between the current position and the initial position of each particle and the accumulated shift in the center of mass
-         double dxi = x[i]-x0[i]-dxOverN;
-         double dyi = y[i]-y0[i]-dyOverN;
-         double dzi = z[i]-z0[i]-dzOverN;
- 
+         // Compute total cap volumes and FR free energy for all microgels before the move
+         for (i = 0; i < N; i++) {
+         capVolSumBeforeMoveI = 0;
+         //capVolSumBeforeMoveArray[i] = 0;
          volOfMicrogel[i] = (4.0 / 3.0) * Math.PI * Math.pow(a[i], 3);
 
-         pairEnergySum = 0;
-         capVolSumAfterMoveI = 0;
-         //capVolSumAfterMoveJ = 0;
-         pairPotentialCorrection = 2*springConstant*Math.sqrt((dxtrial*dxi+dytrial*dyi+dztrial*dzi)*(dxtrial*dxi+dytrial*dyi+dztrial*dzi))+(1-1/(double)N)*trialDisplacementDistance; // change in spring energy
-
-         double dFloryForJ = 0;
-         for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
-
-            j = nearestNeighbors[i][neighborIdx];
-            volOfMicrogel[j] = (4.0 / 3.0) * Math.PI * Math.pow(a[j], 3);
-               // Save current free energy as old free energy for microgel j
-               double oldFreeEnergyJ = floryFRBeforeMove[j];
-               
-               xij = PBC.separation(x[i] - x[j], side);
-               yij = PBC.separation(y[i] - y[j], side);
-               zij = PBC.separation(z[i] - z[j], side);
- 
-               r2 = xij * xij + yij * yij + zij * zij;
-               sigma = a[i] + a[j];
-               
-               // if the microgels are overlapping
-               if (r2 < sigma * sigma) {
-                  r = Math.sqrt(r2);
-                  B = scale * Young * nChains * Math.pow(sigma, 2.0) * Math.sqrt(a[i] * a[j]) / (Math.pow(a[i], 3.0) + Math.pow(a[j], 3.0));
-                  HertzEnergy = B * Math.pow(1 - r / sigma, 2.5);
-                  newPairEnergy[i][j] = HertzEnergy;
-                  pairEnergySum += HertzEnergy;
- 
-                  double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
-                  double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
-                  // compute cap volume
-                  capVolForJ = (Math.PI * Math.pow(hj, 2) * (3.0 * a[j] - hj)) / 3.0;
-                  capVolForI = (Math.PI * Math.pow(hi, 2) * (3.0 * a[i] - hi)) / 3.0;
-                  capVolSumAfterMoveI += capVolForI;
-                  capVolAfterTrialMove[i][j] = capVolForJ;
-                  capVolAfterTrialMove[j][i] = capVolForI; // Alan
-
-                  // Calculate FR free energy for microgel j after the move
-                  double newCapVolJ = capVolSumBeforeMoveArray[j] + capVolAfterTrialMove[i][j] - capVolBeforeTrialMove[i][j];
-                  newSWR = a[j] * Math.pow(((volOfMicrogel[j] - newCapVolJ) / volOfMicrogel[j]), 1.0/3.0);
-                  mixF = nMon * ((newSWR * newSWR * newSWR - 1) * Math.log(1 - 1 / (newSWR * newSWR * newSWR)) + chi * (1 - 1 / (newSWR * newSWR * newSWR)));
-                  elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
-                  floryFRAfterMove[j] = mixF + elasticF;
-                  
-                  // Calculate change in energy for microgel j
-                  dFloryForJ += floryFRAfterMove[j] - oldFreeEnergyJ;
-
-               }
-               else{//if they are not overlapping
-                  capVolAfterTrialMove[i][j] = 0;
-                  capVolAfterTrialMove[j][i] = 0;
-
-                  // Calculate FR free energy for microgel j after the move
-                  double newCapVolJ = capVolSumBeforeMoveArray[j] + capVolAfterTrialMove[i][j] - capVolBeforeTrialMove[i][j];
-                  newSWR = a[j] * Math.pow(((volOfMicrogel[j] - newCapVolJ) / volOfMicrogel[j]), 1.0 / 3.0);
-                  mixF = nMon * ((newSWR * newSWR * newSWR - 1) * Math.log(1 - 1 / (newSWR * newSWR * newSWR)) + chi * (1 - 1 / (newSWR * newSWR * newSWR)));
-                  elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
-                  floryFRAfterMove[j] = mixF + elasticF;
-                  
-                  // Calculate change in energy for microgel j
-                  dFloryForJ += floryFRAfterMove[j] - oldFreeEnergyJ;
-
-               }
-            
-         }
-         
-         // Flory-Rehner free energy for microgel i after the move
-         newSWR = a[i] * Math.pow(((volOfMicrogel[i] - capVolSumAfterMoveI)/volOfMicrogel[i]), 1.0/3.0);
-         mixF = nMon*((newSWR*newSWR*newSWR-1)*Math.log(1-1/(newSWR*newSWR*newSWR))+chi*(1-1/(newSWR*newSWR*newSWR)));
-         elasticF = 1.5*nMon*xLinkFrac*(newSWR*newSWR-Math.log(newSWR) - 1);
-         floryFRAfterMove[i] = mixF + elasticF;
-
-         // Calculate change in energy for microgel i
-         double dFloryForI = floryFRAfterMove[i] - oldFreeEnergyI; // Use updated old free energy
-
-         // Calculate total change in FR energy for the system
-         dFlory = dFloryForI + dFloryForJ;
- 
-         de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
-
-         if (Math.exp(-de) < Math.random()) { // Metropolis algorithm
-            x[i] -= dxtrial; //reject move
-            y[i] -= dytrial;
-            z[i] -= dztrial;
-            a[i] -= datrial;
-
-         } 
-         
-         else { //accept move and update energy
-            dxOverN += dxtrial / (double) N;
-            dyOverN += dytrial / (double) N;
-            dzOverN += dztrial / (double) N;
- 
-            energy[i] = pairEnergySum;
- 
-            for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
+            // consider interactions with other microgels
+            for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) { // loop through exactly 12 nearest neigbours of particle i
+               // nearestNeighbors[i] contains the indices of the 12 closest particles to particle i
                j = nearestNeighbors[i][neighborIdx];
-           
-               energy[j] += newPairEnergy[i][j] - pairEnergy[i][j];
-               pairEnergy[i][j] = newPairEnergy[i][j];
-               pairEnergy[j][i] = newPairEnergy[i][j];
-           
-               // Update cap volumes
-               capVolBeforeTrialMove[i][j] = capVolAfterTrialMove[i][j];
-               capVolBeforeTrialMove[j][i] = capVolAfterTrialMove[j][i];
-           }           
 
-            // Update capVolSumBeforeMoveArray with the new value
-            capVolSumBeforeMoveArray[i] = capVolSumAfterMoveI;
+                  volOfMicrogel[j] = (4.0 / 3.0) * Math.PI * Math.pow(a[j], 3);
+                  xij = PBC.separation(x[i] - x[j], side);
+                  yij = PBC.separation(y[i] - y[j], side);
+                  zij = PBC.separation(z[i] - z[j], side);
 
-            // Update old free energy for microgel i before the next trial move
-            floryFRBeforeMove[i] = floryFRAfterMove[i];
-            for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
-               j = nearestNeighbors[i][neighborIdx];
-               floryFRBeforeMove[j] = floryFRAfterMove[j];
+                  r2 = xij * xij + yij * yij + zij * zij;
+                  sigma = a[i] + a[j];
+
+                  // if the microgels are overlapping
+                  if (r2 < sigma * sigma) {
+                     r = Math.sqrt(r2);
+                     double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
+                     double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
+                     // the individual caps of the microgels
+                     capVolForI = (Math.PI*Math.pow(hi, 2)*(3.0*a[i]-hi))/3.0;
+                     capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0; 
+                     capVolSumBeforeMoveI += capVolForI;
+                     //capVolJBeforeMove[j] = capVolForJ;
+                     capVolBeforeTrialMove[i][j] = capVolForJ;
+                     capVolBeforeTrialMove[j][i] = capVolForI; 
+                  }
+                  else{ //if they are not overlapping
+                     capVolBeforeTrialMove[i][j] = 0;
+                     capVolBeforeTrialMove[j][i] = 0;
+                  }
+               
             }
-
-                        
+            capVolSumBeforeMoveArray[i] = capVolSumBeforeMoveI;
+            // new swelling ratio
+            newSWR = a[i] * Math.pow(((volOfMicrogel[i] - capVolSumBeforeMoveArray[i]) / volOfMicrogel[i]), 1.0 / 3.0);
+            mixF = nMon*((newSWR*newSWR*newSWR-1)*Math.log(1-1/(newSWR*newSWR*newSWR))+chi*(1-1/(newSWR*newSWR*newSWR)));
+            elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
+            // the Flory-Rehner free energy before the move for each microgel
+            floryFRBeforeMove[i] = mixF + elasticF;
          }
+
+         for (i = 0; i < N; i++) {
+            
+            // Update the old free energy for the current state before making the trial move
+            double oldFreeEnergyI = floryFRBeforeMove[i];
+
+            dxtrial = tolerance*2.*(Math.random()-0.5);
+            dytrial = tolerance*2.*(Math.random()-0.5);
+            dztrial = tolerance*2.*(Math.random()-0.5);
+            datrial = atolerance*2.*(Math.random()-0.5);
+
+            // Euclidean distance of trial displacements
+            trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
+   
+            x[i] += dxtrial; // trial displacement 
+            y[i] += dytrial;                       
+            z[i] += dztrial;
+            a[i] += datrial; // trial radius change
+
+            //the Euclidean distance between the current position and the initial position of each particle and the accumulated shift in the center of mass
+            double dxi = x[i]-x0[i]-dxOverN;
+            double dyi = y[i]-y0[i]-dyOverN;
+            double dzi = z[i]-z0[i]-dzOverN;
+   
+            volOfMicrogel[i] = (4.0 / 3.0) * Math.PI * Math.pow(a[i], 3);
+
+            pairEnergySum = 0;
+            capVolSumAfterMoveI = 0;
+            //capVolSumAfterMoveJ = 0;
+            pairPotentialCorrection = 2*springConstant*Math.sqrt((dxtrial*dxi+dytrial*dyi+dztrial*dzi)*(dxtrial*dxi+dytrial*dyi+dztrial*dzi))+(1-1/(double)N)*trialDisplacementDistance; // change in spring energy
+
+            double dFloryForJ = 0;
+            for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
+
+               j = nearestNeighbors[i][neighborIdx];
+               volOfMicrogel[j] = (4.0 / 3.0) * Math.PI * Math.pow(a[j], 3);
+                  // Save current free energy as old free energy for microgel j
+                  double oldFreeEnergyJ = floryFRBeforeMove[j];
+                  
+                  xij = PBC.separation(x[i] - x[j], side);
+                  yij = PBC.separation(y[i] - y[j], side);
+                  zij = PBC.separation(z[i] - z[j], side);
+   
+                  r2 = xij * xij + yij * yij + zij * zij;
+                  sigma = a[i] + a[j];
+                  
+                  // if the microgels are overlapping
+                  if (r2 < sigma * sigma) {
+                     r = Math.sqrt(r2);
+                     B = scale * Young * nChains * Math.pow(sigma, 2.0) * Math.sqrt(a[i] * a[j]) / (Math.pow(a[i], 3.0) + Math.pow(a[j], 3.0));
+                     HertzEnergy = B * Math.pow(1 - r / sigma, 2.5);
+                     newPairEnergy[i][j] = HertzEnergy;
+                     pairEnergySum += HertzEnergy;
+   
+                     double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
+                     double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
+                     // compute cap volume
+                     capVolForJ = (Math.PI * Math.pow(hj, 2) * (3.0 * a[j] - hj)) / 3.0;
+                     capVolForI = (Math.PI * Math.pow(hi, 2) * (3.0 * a[i] - hi)) / 3.0;
+                     capVolSumAfterMoveI += capVolForI;
+                     capVolAfterTrialMove[i][j] = capVolForJ;
+                     capVolAfterTrialMove[j][i] = capVolForI; // Alan
+
+                     // Calculate FR free energy for microgel j after the move
+                     double newCapVolJ = capVolSumBeforeMoveArray[j] + capVolAfterTrialMove[i][j] - capVolBeforeTrialMove[i][j];
+                     newSWR = a[j] * Math.pow(((volOfMicrogel[j] - newCapVolJ) / volOfMicrogel[j]), 1.0/3.0);
+                     mixF = nMon * ((newSWR * newSWR * newSWR - 1) * Math.log(1 - 1 / (newSWR * newSWR * newSWR)) + chi * (1 - 1 / (newSWR * newSWR * newSWR)));
+                     elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
+                     floryFRAfterMove[j] = mixF + elasticF;
+                     
+                     // Calculate change in energy for microgel j
+                     dFloryForJ += floryFRAfterMove[j] - oldFreeEnergyJ;
+
+                  }
+                  else{//if they are not overlapping
+                     capVolAfterTrialMove[i][j] = 0;
+                     capVolAfterTrialMove[j][i] = 0;
+
+                     // Calculate FR free energy for microgel j after the move
+                     double newCapVolJ = capVolSumBeforeMoveArray[j] + capVolAfterTrialMove[i][j] - capVolBeforeTrialMove[i][j];
+                     newSWR = a[j] * Math.pow(((volOfMicrogel[j] - newCapVolJ) / volOfMicrogel[j]), 1.0 / 3.0);
+                     mixF = nMon * ((newSWR * newSWR * newSWR - 1) * Math.log(1 - 1 / (newSWR * newSWR * newSWR)) + chi * (1 - 1 / (newSWR * newSWR * newSWR)));
+                     elasticF = 1.5 * nMon * xLinkFrac * (newSWR * newSWR - Math.log(newSWR) - 1);
+                     floryFRAfterMove[j] = mixF + elasticF;
+                     
+                     // Calculate change in energy for microgel j
+                     dFloryForJ += floryFRAfterMove[j] - oldFreeEnergyJ;
+
+                  }
+               
+            }
+            
+            // Flory-Rehner free energy for microgel i after the move
+            newSWR = a[i] * Math.pow(((volOfMicrogel[i] - capVolSumAfterMoveI)/volOfMicrogel[i]), 1.0/3.0);
+            mixF = nMon*((newSWR*newSWR*newSWR-1)*Math.log(1-1/(newSWR*newSWR*newSWR))+chi*(1-1/(newSWR*newSWR*newSWR)));
+            elasticF = 1.5*nMon*xLinkFrac*(newSWR*newSWR-Math.log(newSWR) - 1);
+            floryFRAfterMove[i] = mixF + elasticF;
+
+            // Calculate change in energy for microgel i
+            double dFloryForI = floryFRAfterMove[i] - oldFreeEnergyI; // Use updated old free energy
+
+            // Calculate total change in FR energy for the system
+            dFlory = dFloryForI + dFloryForJ;
+   
+            de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
+
+            if (Math.exp(-de) < Math.random()) { // Metropolis algorithm
+               x[i] -= dxtrial; //reject move
+               y[i] -= dytrial;
+               z[i] -= dztrial;
+               a[i] -= datrial;
+
+            } 
+            
+            else { //accept move and update energy
+               dxOverN += dxtrial / (double) N;
+               dyOverN += dytrial / (double) N;
+               dzOverN += dztrial / (double) N;
+   
+               energy[i] = pairEnergySum;
+   
+               for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
+                  j = nearestNeighbors[i][neighborIdx];
+            
+                  energy[j] += newPairEnergy[i][j] - pairEnergy[i][j];
+                  pairEnergy[i][j] = newPairEnergy[i][j];
+                  pairEnergy[j][i] = newPairEnergy[i][j];
+            
+                  // Update cap volumes
+                  capVolBeforeTrialMove[i][j] = capVolAfterTrialMove[i][j];
+                  capVolBeforeTrialMove[j][i] = capVolAfterTrialMove[j][i];
+            }           
+
+               // Update capVolSumBeforeMoveArray with the new value
+               capVolSumBeforeMoveArray[i] = capVolSumAfterMoveI;
+
+               // Update old free energy for microgel i before the next trial move
+               floryFRBeforeMove[i] = floryFRAfterMove[i];
+               for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
+                  j = nearestNeighbors[i][neighborIdx];
+                  floryFRBeforeMove[j] = floryFRAfterMove[j];
+               }
+
+                           
+            }
+         }
+
+         calculateTotalEnergy(lambda); // new total energy
       }
 
-      calculateTotalEnergy(lambda); // new total energy
-   }
-
-   public void calculateTotalEnergy(double lambda) {
-      totalEnergy = 0;  //when lambda = 1
-      totalVirial = 0;
-      totalPairEnergy = 0;  //when lambda = 1
-      totalFreeEnergy = 0;
-      springEnergySum = 0; // total spring energy of the system
-      squaredDisplacementSum = 0;
-      double virialSum;
-      double xij, yij, zij, r, r2, sigma, dxi, dyi, dzi;
-      double derivPart, HertzEnergy;
-      double mixF, elasticF, totalF;
-      double fOverR, fx, fy, fz;
-      for(int i = 0; i < N; ++i) {
-         pairEnergySum = 0; //for the lamba = 1 system
-         virialSum = 0;
-         
-         // the Euclidean distance between the current position and the initial position of each particle
-         dxi = x[i]-x0[i]-dxOverN;
-         dyi = y[i]-y0[i]-dyOverN;
-         dzi = z[i]-z0[i]-dzOverN;
-        
-         squaredDisplacement = Math.pow(dxi, 2)+Math.pow(dyi, 2)+Math.pow(dzi, 2); // the square displacement 
-         squaredDisplacementSum+=squaredDisplacement;
-         springEnergy = springConstant*squaredDisplacement; //since it is a single particle (i) component
-         springEnergySum += springEnergy; 
-         for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
-               int j = nearestNeighbors[i][neighborIdx];
-               xij = PBC.separation(x[i]-x[j], side);
-               yij = PBC.separation(y[i]-y[j], side);
-               zij = PBC.separation(z[i]-z[j], side);
-               r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-
-	            sigma = a[i]+ a[j];
-	            if (r2 < sigma*sigma){
-                  r = Math.sqrt(r2);
-                  // Hertz pair potential amplitude for lambda = 1 system
-                  B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-                  derivPart = B*Math.pow(1-r/sigma, 1.5);
-                  HertzEnergy = derivPart*(1-r/sigma);
-                  pairEnergySum += HertzEnergy;
-                  pairEnergy[i][j] = HertzEnergy; // pair energy of particles i and j
-		            fOverR = (2.5/sigma)*derivPart/r;
-		            fx = fOverR*xij; // pair force in x-direction
-		            fy = fOverR*yij; // pair force in y-direction
-		            fz = fOverR*zij; // pair force in z-direction
-		            virialSum += xij*fx + yij*fy + zij*fz;
-	            }
+      public void calculateTotalEnergy(double lambda) {
+         totalEnergy = 0;  //when lambda = 1
+         totalVirial = 0;
+         totalPairEnergy = 0;  //when lambda = 1
+         totalFreeEnergy = 0;
+         springEnergySum = 0; // total spring energy of the system
+         squaredDisplacementSum = 0;
+         double virialSum;
+         double xij, yij, zij, r, r2, sigma, dxi, dyi, dzi;
+         double derivPart, HertzEnergy;
+         double mixF, elasticF, totalF;
+         double fOverR, fx, fy, fz;
+         for(int i = 0; i < N; ++i) {
+            pairEnergySum = 0; //for the lamba = 1 system
+            virialSum = 0;
             
-         }
-
-         // Flory-Rehner single-particle free energy (associated with swelling)
-	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-	      elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-         //elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
+            // the Euclidean distance between the current position and the initial position of each particle
+            dxi = x[i]-x0[i]-dxOverN;
+            dyi = y[i]-y0[i]-dyOverN;
+            dzi = z[i]-z0[i]-dzOverN;
          
-	      totalF = elasticF + mixF; // Flory-Rehner free energy after the trial move
+            squaredDisplacement = Math.pow(dxi, 2)+Math.pow(dyi, 2)+Math.pow(dzi, 2); // the square displacement 
+            squaredDisplacementSum+=squaredDisplacement;
+            springEnergy = springConstant*squaredDisplacement; //since it is a single particle (i) component
+            springEnergySum += springEnergy; 
+            for (int neighborIdx = 0; neighborIdx < 12; neighborIdx++) {
+                  int j = nearestNeighbors[i][neighborIdx];
+                  xij = PBC.separation(x[i]-x[j], side);
+                  yij = PBC.separation(y[i]-y[j], side);
+                  zij = PBC.separation(z[i]-z[j], side);
+                  r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
 
-         energy[i] = pairEnergySum; // total energy of particle i for the lambda system // because the change in energy is computed in the step method and the change has been used in the step method
+                  sigma = a[i]+ a[j];
+                  if (r2 < sigma*sigma){
+                     r = Math.sqrt(r2);
+                     // Hertz pair potential amplitude for lambda = 1 system
+                     B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
+                     derivPart = B*Math.pow(1-r/sigma, 1.5);
+                     HertzEnergy = derivPart*(1-r/sigma);
+                     pairEnergySum += HertzEnergy;
+                     pairEnergy[i][j] = HertzEnergy; // pair energy of particles i and j
+                     fOverR = (2.5/sigma)*derivPart/r;
+                     fx = fOverR*xij; // pair force in x-direction
+                     fy = fOverR*yij; // pair force in y-direction
+                     fz = fOverR*zij; // pair force in z-direction
+                     virialSum += xij*fx + yij*fy + zij*fz;
+                  }
+               
+            }
 
-         mixFRSR = nMon*((reservoirSR*reservoirSR*reservoirSR-1)*Math.log(1-1/reservoirSR/reservoirSR/reservoirSR)+chi*(1-1/reservoirSR/reservoirSR/reservoirSR));
-         elasticFRSR = 1.5*nChains*(reservoirSR*reservoirSR-Math.log(reservoirSR)-1);
+            // Flory-Rehner single-particle free energy (associated with swelling)
+            mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
+            elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
+            //elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
+            
+            totalF = elasticF + mixF; // Flory-Rehner free energy after the trial move
 
-         totalFRSR = mixFRSR + elasticFRSR; // total free energy associated with the reservoir state
-         totalF = totalF - totalFRSR;
-      
-         totalPairEnergy += pairEnergySum; //when lambda = 1
-         totalFreeEnergy += totalF;
-	      totalVirial += virialSum;
+            energy[i] = pairEnergySum; // total energy of particle i for the lambda system // because the change in energy is computed in the step method and the change has been used in the step method
+
+            mixFRSR = nMon*((reservoirSR*reservoirSR*reservoirSR-1)*Math.log(1-1/reservoirSR/reservoirSR/reservoirSR)+chi*(1-1/reservoirSR/reservoirSR/reservoirSR));
+            elasticFRSR = 1.5*nChains*(reservoirSR*reservoirSR-Math.log(reservoirSR)-1);
+
+            totalFRSR = mixFRSR + elasticFRSR; // total free energy associated with the reservoir state
+            totalF = totalF - totalFRSR;
+         
+            totalPairEnergy += pairEnergySum; //when lambda = 1
+            totalFreeEnergy += totalF;
+            totalVirial += virialSum;
 
          // totalVolFrac += calculateVolumeFraction(); //call the calculateVolumeFraction method here
 
@@ -733,7 +733,7 @@ public class HertzSpheresFCCNearestNeighbors {
                // boltzmannFactorAccumulator += boltzmannFactor;
                virialAccumulator += totalVirial;
                squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
-               springEnergyAccumulator += springEnergySum; // accumulates all the spring energies        
+               springEnergyAccumulator += springEnergySum; // accumulates all the spring energies
                // Accumulate the volume fraction
                volFracAccumulator += calculateVolumeFraction();            }
          }
@@ -744,7 +744,7 @@ public class HertzSpheresFCCNearestNeighbors {
       return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N
    }
 
-   // mean microgel volume fraction 
+   // mean microgel volume fraction
    public double meanVolFrac() {
       return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
    }
@@ -755,7 +755,7 @@ public class HertzSpheresFCCNearestNeighbors {
    }
 
    // einstein  free energy per particle (KT units)
-   public double einsteinFreeEnergy() { 
+   public double einsteinFreeEnergy() {
       // Assuming the dimension is 3D
       int d = 3; //the dimension
       return (initialEnergy-(d/2.0)*N*Math.log(Math.PI/springConstant))/N;
@@ -812,77 +812,77 @@ public class HertzSpheresFCCNearestNeighbors {
 
       return meanR;
    }
-    /* compute mean volume fraction after stopping */
-    public double calculateVolumeFraction() { // instantaneous volume fraction 
-         double microgelVol, overlapVol; 
-         double xij, yij, zij, r, r2, sigma, da2, amin;
- 
-         microgelVol = 0;
-         for (int i=0; i<N; i++) {
-             microgelVol += (4./3.)*Math.PI*a[i]*a[i]*a[i]; // sum volumes of spheres
-             for (int j=i+1; j<N; j++){
-                 xij = PBC.separation(x[i]-x[j], side);
-                 yij = PBC.separation(y[i]-y[j], side);
-                 zij = PBC.separation(z[i]-z[j], side);
-                 r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-                 sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
-                 da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
-                 if (r2 < sigma*sigma){ // particles are overlapping 
-                     if (r2 < da2){ // one particle is entirely inside the other
-                         amin = Math.min(a[i],a[j]); // minimum of radii
-                         overlapVol = (4./3.)*Math.PI*amin*amin*amin; // volume of smaller particle
-                     }
-                     else { // one particle is NOT entirely inside the other
-                         r = Math.sqrt(r2);
-                         overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
-                     }
-                     microgelVol -= overlapVol; // subtract overlap volume so we don't double-count
-                 }
-             }
+      /* compute mean volume fraction after stopping */
+      public double calculateVolumeFraction() { // instantaneous volume fraction 
+            double microgelVol, overlapVol; 
+            double xij, yij, zij, r, r2, sigma, da2, amin;
+   
+            microgelVol = 0;
+            for (int i=0; i<N; i++) {
+               microgelVol += (4./3.)*Math.PI*a[i]*a[i]*a[i]; // sum volumes of spheres
+               for (int j=i+1; j<N; j++){
+                  xij = PBC.separation(x[i]-x[j], side);
+                  yij = PBC.separation(y[i]-y[j], side);
+                  zij = PBC.separation(z[i]-z[j], side);
+                  r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
+                  sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
+                  da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
+                  if (r2 < sigma*sigma){ // particles are overlapping 
+                        if (r2 < da2){ // one particle is entirely inside the other
+                           amin = Math.min(a[i],a[j]); // minimum of radii
+                           overlapVol = (4./3.)*Math.PI*amin*amin*amin; // volume of smaller particle
+                        }
+                        else { // one particle is NOT entirely inside the other
+                           r = Math.sqrt(r2);
+                           overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
+                        }
+                        microgelVol -= overlapVol; // subtract overlap volume so we don't double-count
+                  }
+               }
+            }
+            //volFrac += microgelVol/totalVol;
+   
+            return microgelVol/totalVol;
+      }
+
+      /* reservoir swelling ratio as root of Flory-Rehner pressure */
+      public double reservoirSwellingRatio(double nMon, double nChains, double chi){
+         Function f = new FloryRehnerPressure(nMon, nChains, chi);
+         double xleft = 1.1;
+         double xright = 15;
+         double epsilon = 1.e-06;
+         double x = Root.bisection(f, xleft, xright, epsilon);
+         return x;
+      }
+
+      class FloryRehnerPressure implements Function{
+         double nMon, nChains, chi;
+
+         /**
+            * Constructs the FloryRehnerPressure function with the given parameters.
+            * @param _nMon double
+            * @param _nChains double
+            * @param _chi double
+            */
+         FloryRehnerPressure(double _nMon, double _nChains, double _chi) {
+            nMon = _nMon;
+            nChains = _nChains;
+            chi = _chi;
          }
-         //volFrac += microgelVol/totalVol;
- 
-         return microgelVol/totalVol;
-    }
 
-    /* reservoir swelling ratio as root of Flory-Rehner pressure */
-    public double reservoirSwellingRatio(double nMon, double nChains, double chi){
-        Function f = new FloryRehnerPressure(nMon, nChains, chi);
-        double xleft = 1.1;
-        double xright = 15;
-        double epsilon = 1.e-06;
-        double x = Root.bisection(f, xleft, xright, epsilon);
-        return x;
-    }
+         public double evaluate(double x) {
+            double pMixing = nMon*(x*x*x*Math.log(1.-1./x/x/x)+1.+chi/x/x/x);
+            double pElastic = nChains*(x*x-0.5);
+            double pressure = pMixing + pElastic;
+            return pressure;
+         }
 
-    class FloryRehnerPressure implements Function{
-        double nMon, nChains, chi;
-
-        /**
-         * Constructs the FloryRehnerPressure function with the given parameters.
-         * @param _nMon double
-         * @param _nChains double
-         * @param _chi double
-         */
-        FloryRehnerPressure(double _nMon, double _nChains, double _chi) {
-          nMon = _nMon;
-          nChains = _nChains;
-          chi = _chi;
-        }
-
-        public double evaluate(double x) {
-          double pMixing = nMon*(x*x*x*Math.log(1.-1./x/x/x)+1.+chi/x/x/x);
-          double pElastic = nChains*(x*x-0.5);
-          double pressure = pMixing + pElastic;
-          return pressure;
-        }
-
-    }
+      }
 
 }
 
 
-/* 
+/*
  * Open Source Physics software is free software; you can redistribute
  * it and/or modify it under the terms of the GNU General Public License (GPL) as
  * published by the Free Software Foundation; either version 2 of the License,

@@ -1,18 +1,17 @@
 package org.opensourcephysics.sip.Hertz;
 
-import java.awt.Color;
-import java.text.DecimalFormat;
-
-import org.opensourcephysics.controls.AbstractSimulation;
-import org.opensourcephysics.controls.SimulationControl;
-import org.opensourcephysics.display3d.simple3d.ElementEllipsoid;
-import org.opensourcephysics.display3d.simple3d.ElementSphere;
-import org.opensourcephysics.frames.Display3DFrame;
-import org.opensourcephysics.frames.PlotFrame;
-import java.io.BufferedWriter;
 import java.io.File;
+import java.awt.Color;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.BufferedWriter;
+import java.text.DecimalFormat;
+import org.opensourcephysics.frames.PlotFrame;
+import org.opensourcephysics.frames.Display3DFrame;
+import org.opensourcephysics.controls.SimulationControl;
+import org.opensourcephysics.controls.AbstractSimulation;
+import org.opensourcephysics.display3d.simple3d.ElementSphere;
+import org.opensourcephysics.display3d.simple3d.ElementEllipsoid;
 
 // imported for the purpose of creating an array to store the values of the dryVolFrac and free energies
 import java.util.List;
@@ -20,62 +19,105 @@ import java.util.ResourceBundle.Control;
 import java.util.ArrayList;
 
 /**
- * HertzSpheresApp performs a Monte Carlo simulation of microgels interacting
- * via the
- * Hertz elastic pair potential and swelling according to the Flory-Rehner free
- * energy.
- * 
- * @authors Alan Denton and Matt Urich
- * @version 1.2 25-05-2021
- * 
+ * HertzSpheresSolidPhaseFreeEnergyApp.java
+ *
+ * Purpose:
+ *   This program computes the free energy and associated thermodynamic parameters 
+ *   of soft microgel systems using both the interpenetration and facet algorithms. 
+ *   Monte Carlo simulations are performed for particles interacting via the Hertzian 
+ *   elastic potential, with swelling behavior modeled by Flory–Rehner theory. 
+ *   Free energy is evaluated using the Frenkel–Ladd method adapted for deformable particles.
+ *
+ * Algorithms Supported:
+ *   - Interpenetration algorithm: accounts for overlap-dependent mixing free energy
+ *   - Facet algorithm: accounts for surface contacts and volume caps between particles
+ *
+ * Key Features:
+ *   - Iterative adjustment of dry volume fraction to explore bulk phase behavior
+ *   - Gauss–Legendre quadrature integration for Frenkel–Ladd free energy calculation
+ *   - Calculation of:
+ *       • Pairwise interaction free energy
+ *       • Flory–Rehner free energy
+ *       • Helmholtz free energy per volume
+ *       • Lindemann parameter for melting criterion
+ *       • Pressure (Flory, pair, and total contributions)
+ *       • Chemical potential
+ *   - Structural analysis:
+ *       • Radial distribution function g(r)
+ *       • Static structure factor S(k)
+ *   - Real-time 3D visualization of particle configurations
+ *
+ * Authors: Alan Denton and Oreoluwa Alade
+ * Version: 1.2 (April 2025)
  */
 
 public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); 																			
+	// HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
+
+	/* For the interpenetration algorithm */
+	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
+
+	/* For the facet algorithm */
+	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
 	PlotFrame sizeData = new PlotFrame("MC steps", "alpha", "Mean swelling ratio");
 	Display3DFrame display3d = new Display3DFrame("Simulation animation");
 	int dataPoints;
 	int maxDataPoints;
+	int weightIteration = 0, pointIteration = 0; // set and reset the iterations
 	ElementSphere nanoSphere[];
 	boolean added = false;
 	boolean structure;
 	RDF rdf;
 	SSF ssf;
-	double dryVolFracStart, dryVolFracMax, dryVolFrac;
-	double lambda, totalVol;
+	double dryVolFracStart;
+	double dryVolFracMax;
+	double dryVolFrac;
+	double lambda;
+	double totalVol;
 	boolean setLambda = true;
 	boolean incrementDryVolFrac = true;
-	double deltaF2Accumulator = 0, deltaF2, deltaF1, deltaF1PerVol, deltaF2PerVol;
-	double upperLimit, lowerLimit, xIncrement;
-	double f0, f0overN, f0PerVolume;
-	double x;
-	double uLatticePerN;
-	double fPair, fPairPerVol, totalFreeEnergy;
+	double variableChanged;
+	double einsteinFreeEnergy;
+	double deltaFAccumulator = 0;
+	double gaussPoint;
+	double gaussWeight;
+	double fPair;
+	double fPairPerVol;
+	double totalFreeEnergy;
 	double floryFEperVol;
-	boolean isFirstIteration;
-	double initialFreeEnergy, latestFreeEnergy, initialVolume, latestVolume;
-	double calculatedPressure;
-	double volumeChange, freeEnergyChange;
-	double latestFloryRehnerFreeEnergy;
-	double floryPressure, dFRFE_dPhi, floryPContribution, initialPairFreeEnergy, dFPair_dPhi, pairPressure, pairPContribution;
+	double initialFreeEnergy;
+	double latestFreeEnergy;
+	double initialVolume;
+	double latestVolume;
+	double UPairMinusUSpringPerVolume;
+	double floryPressure;
+	double dFRFE_dPhi;
+	double floryPContribution;
+	double initialPairFreeEnergy;
+	double dFPair_dPhi;
+	double pairPressure;
+	double pairPContribution;
 	double chemicalPotential;
 	double uPairPerVol;
-	double logBoltzmannFactor;
-	double deltaF1MinusUlattice;
-	double density, nnDistance;
+	double density;
+	double nnDistance;
 	double newHertzianPotential;
+	boolean gaussLegendrePoint = true;
+	boolean gaussLegendreWeight = true;
+	double deltaFPerVol;
+	double springConstant;
+	double referenceFR;
+	double referenceFRPerN;
+	double referenceFRPerVol;
+	double lindemannParameter;
 
 	/* Lists to store various calculated values */
 	List<Double> dryVolFracs = new ArrayList<>();
-	List<Double> delta2List = new ArrayList<>();
-	List<Double> deltaF1List = new ArrayList<>();
 	List<Double> dryVolFracsEdited = new ArrayList<>();
-	List<Double> deltaF2PerVolumeList = new ArrayList<>();
-	List<Double> f0PerVolumeList = new ArrayList<>();
-	List<Double> boltzmannFactorPerNList = new ArrayList<>();
 	List<Double> floryFEperVolList = new ArrayList<>();
 	List<Double> totalSumOfEnergiesList = new ArrayList<>();
 	List<Double> totalVolList = new ArrayList<>();
@@ -84,17 +126,18 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	List<Double> pairFreeEnergyList = new ArrayList<>();
 	List<Double> floryRehnerPressuresList = new ArrayList<>();
 	List<Double> pairPressuresList = new ArrayList<>();
-	List<Double> varialPressureList = new ArrayList<>();
 	List<Double> floryRehnerPressuresListEdited = new ArrayList<>();
 	List<Double> pairPressuresListEdited = new ArrayList<>();
-	List<Double> totalVarList = new ArrayList<>();
 	List<Double> chemicalPotentialList = new ArrayList<>();
 	List<Double> reservoirVolFracList = new ArrayList<>();
 	List<Double> swellingRatioList = new ArrayList<>();
 	List<Double> uPairPerVolList = new ArrayList<>();
-	List<Double> logBoltzmannFactorList = new ArrayList<>();
-	List<Double> deltaF1MinusUlatticeList = new ArrayList<>();
 	List<Double> newHertzianPotentialList = new ArrayList<>();
+	List<Double> gaussLegendreWeights = new ArrayList<>();
+	List<Double> gaussLegendrePoints = new ArrayList<>();
+	List<Double> referenceFRPerVolList = new ArrayList<>();
+	List<Double> springConstantList = new ArrayList<>();
+	List<Double> lindemannParameterList = new ArrayList<>();
 
 	DecimalFormat decimalFormat = new DecimalFormat("#.#######"); // to round my dryVolFrac values to 3 dp
 
@@ -104,13 +147,15 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void initialize() {
 
 		added = false;
-		particles.dlambda = control.getDouble("Lambda increment");// the coupling constant increment
+		//particles.dlambda = control.getDouble("Lambda increment");// the coupling constant increment
 		dryVolFracStart = control.getDouble("DryVolFracStart");
 		dryVolFracMax = control.getDouble("DryVolFrac Max");
 		particles.dphi = control.getDouble("DryVolFrac increment");
-		xIncrement = control.getDouble("limit increment");// to increment the limits
-		particles.springConstant = control.getDouble("Spring constant"); // the spring constant
-		// upperLimit = control.getDouble("upper limit");
+		//xIncrement = control.getDouble("limit increment");// to increment the limits
+		//particles.springConstant = control.getDouble("Spring constant"); // the spring constant
+		//particles.xLinkFrac = control.getDouble("x-link fraction");
+		//dxLink = control.getDouble("x-Link increment");
+		//xLinkFracMax = control.getDouble("x-link fraction max");
 		particles.N = control.getInt("N"); // number of particles
 		String configuration = control.getString("Initial configuration");
 		particles.initConfig = configuration;
@@ -130,11 +175,6 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		particles.fileExtension = control.getString("File extension");
 		structure = control.getBoolean("Calculate structure");
 
-		/* change of variables for calculating delta2 */
-		upperLimit = Math.log(particles.springConstant + Math.exp(3.5));
-		lowerLimit = 3.5;
-		xIncrement = (upperLimit - lowerLimit) / 10.0;
-
 		/*
 		 * set the value of dryVolFrac to the initial starting value of the
 		 * dry Volume Fraction after which it becomes false every other times
@@ -147,16 +187,36 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		particles.initialize(configuration);
 
+		if (gaussLegendreWeight){
+			// initialize the gaussLegendreWeights list
+			gaussLegendreWeights.add(0.23692689);
+			gaussLegendreWeights.add(0.47862867);
+			gaussLegendreWeights.add(0.56888889);
+			gaussLegendreWeights.add(0.47862867);
+			gaussLegendreWeights.add(0.23692689);
+			gaussLegendreWeight = false;
+		}
+
+		if (gaussLegendrePoint){
+			//initialize the gaussLegendrePoints list
+			gaussLegendrePoints.add(-0.90617985);
+			gaussLegendrePoints.add(-0.53846931);
+			gaussLegendrePoints.add(0.);
+			gaussLegendrePoints.add(0.53846931);
+			gaussLegendrePoints.add(0.90617985);
+			gaussLegendrePoint = false;
+		}
+
 		/*
-		 * set the value of x and lambda from changing the variables in the integration
+		 * set the value of lambda
 		 */
+		
 		if (setLambda) {
-			x = lowerLimit + 0.5 * xIncrement; // set the value of x (for the change of variables)
-			lambda = (Math.exp(x) - Math.exp(3.5)) / particles.springConstant;
+			lambda = 1;
 			particles.lambda = lambda;
 			setLambda = false;
 		}
-
+		
 		// write out system parameters
 		System.out.println("nMon: " + particles.nMon);
 		System.out.println("nChains: " + particles.nChains);
@@ -222,112 +282,125 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		if (particles.steps == particles.stop) {
 			System.out.println("DryVolFrac = " + dryVolFrac + ", dryVolFracMax = " + dryVolFracMax);
 			if (dryVolFrac < dryVolFracMax) {
-				control.println("DryVolFrac = " + dryVolFrac);
-				control.println("x = " + x);
-				if (x < upperLimit) {
-					// accumulate deltaF2
-					deltaF2Accumulator += (particles.meanSpringEnergy() * Math.exp(x))/ particles.springConstant;
-					x += xIncrement; // increment x
-					lambda = (Math.exp(x) - Math.exp(3.5)) / particles.springConstant;
-					particles.lambda = lambda;
+				control.println("phi0: "+dryVolFrac);
+				control.println("xLinkFrac: "+ particles.xLinkFrac);
+				if (lambda == 1) { // the real or interacting solid
 
-					if (x > upperLimit) {
-						/* calculate delta F2 */
-						deltaF2 = -(deltaF2Accumulator * xIncrement);
-						deltaF2PerVol = (deltaF2 * particles.N) / particles.totalVol;
+					/* Compute the spring constant at lambda = 1*/
+					springConstant = 3/(2*particles.meanSquareDisplacement()); // the springConstant
+					
+					control.println("springConstant: "+springConstant);
 
-						/*
-						 * Calculate F0: the addittion of delta3(change between unconstrained solid and
-						 * solid with fixed center of mass and the free energy of the refrence ideal
-						 * Einstein crystal
-						 */
-						f0 = -3*(particles.N-1)/2.0*Math.log(Math.PI/particles.springConstant)-Math.log(particles.N)/2.0-Math.log(particles.totalVol);
-						f0overN = f0/particles.N; // per particles
-						f0PerVolume = (f0overN*particles.N)/particles.totalVol; // per volume
-
-						lambda = 1; // set the value of lambda to 1 for a fully interacting system
-						particles.lambda = lambda;
-
-						/* update the f0 and deltaF2 lists */
-						f0PerVolumeList.add(f0PerVolume);
-						deltaF2PerVolumeList.add(deltaF2PerVol);
-
-						this.initialize();
-						return;
-
-					}
-					this.initialize();
-					return;
-				}
-
-				if (lambda == 1) {
-					/* Calculate the Flory–Rehner free energy */
-					floryFEperVol = (particles.meanFreeEnergy() * particles.N) / particles.totalVol;
+					particles.springConstant = springConstant;
+					springConstantList.add(springConstant); // update the list
+					
+					/* Calculate the Flory–Rehner free energy for a fully interacting system */
+					floryFEperVol = (particles.meanFreeEnergy()*particles.N)/particles.totalVol; // Flory-RehnerFR/vol
 					floryFEperVolList.add(floryFEperVol); // update the list
+
+					control.println("floryFEperVol: "+floryFEperVol);
+
+					// the reference free energy (the free energy of the ideal Einstein Crystal)
+					referenceFR = -3*(particles.N-1)/2.0*Math.log(Math.PI/particles.springConstant)-Math.log(particles.N)/2.0-Math.log(particles.totalVol);
+					referenceFRPerN = referenceFR/particles.N; // reference free energy per particles
+					referenceFRPerVol = (referenceFRPerN*particles.N)/particles.totalVol; // reference free energy per volume
+					referenceFRPerVolList.add(referenceFRPerVol); // update the list
+
 					meanPressures.add(particles.meanPressure()); // pressure from virial theorem
 					density = particles.N/particles.totalVol;
-					nnDistance = (1 / Math.sqrt(2)) * Math.pow((4 / density), 1 / 3.0); // the nearest neighbour distance
+					nnDistance = (1/Math.sqrt(2))*Math.pow((4/density), 1/3.0); // the nearest neighbour distance
 					
+					// the lindemannParameter
+					lindemannParameter = Math.sqrt(particles.meanSquareDisplacement())/nnDistance;
+					lindemannParameterList.add(lindemannParameter);
+					control.println("lindemannParameter: "+lindemannParameter);
+
+					// as recommended by Zacahareli and co
 					if (nnDistance>(2*particles.meanRadius())){
 						newHertzianPotential = 0;
 					}
 					else{
 						newHertzianPotential = particles.B*Math.pow((1-nnDistance/(2*particles.meanRadius())), 2.5);
 					}
+
+					control.println("newHertzianPotential: "+newHertzianPotential);
+
 					newHertzianPotentialList.add(newHertzianPotential);
 					
 					uPairPerVol = particles.meanPairEnergy()*(particles.N/particles.totalVol); // the pair energy per volume
-					uPairPerVolList.add(uPairPerVol);
-
-					reservoirVolFracList.add(particles.reservoirVolFrac); // the reservoir volume fraction list
-					swellingRatioList.add(particles.meanRadius()); // the swelling ratio list
-
-					lambda = 0; // reset lambda to 0
-					particles.lambda = lambda;
 					
-					this.initialize();
-					return;
+					control.println("uPairPerVol: "+uPairPerVol);
 
-				}
-
-				if (lambda == 0) {
-					uLatticePerN = particles.initialEnergy / particles.N; // the constant lattice energy
-					/*
-					 * F1: The free energy change between an interacting einstein crystal and a non-interacting einstein crystal
-					 */
-					logBoltzmannFactor = Math.log(particles.meanboltzmannFactor())/particles.N;
-					deltaF1 = uLatticePerN - logBoltzmannFactor;
-					deltaF1PerVol = (deltaF1 * particles.N) / particles.totalVol;
-					deltaF1MinusUlattice = deltaF1-uLatticePerN;
-
-					fPair = f0overN + deltaF1 + deltaF2; // the addition of all the components that make up the pair free energies of a molecular solid (the pair energies)
-					fPairPerVol = (fPair * particles.N) / particles.totalVol; // pair free energy per volume
-					
-					/* the addittion of all the free energies contributing to the interaction of the particles */
-					totalFreeEnergy = fPairPerVol + floryFEperVol;
-					control.println("totalF " + totalFreeEnergy);
-
-					/* update the array lists */
-					dryVolFracs.add(dryVolFrac);
-					deltaF1List.add(deltaF1PerVol);
-					totalVolList.add(particles.totalVol);
-					pairFreeEnergyList.add(fPairPerVol);
-					totalSumOfEnergiesList.add(totalFreeEnergy);
-					logBoltzmannFactorList.add(logBoltzmannFactor);
-					deltaF1MinusUlatticeList.add(deltaF1MinusUlattice);
-
-					x = lowerLimit + 0.5 * xIncrement; // reset the value of x
-					dryVolFrac += particles.dphi; // increment the dry volume fraction
-					particles.dryVolFrac = dryVolFrac;
-					lambda = (Math.exp(x) - Math.exp(3.5)) / particles.springConstant; // reset lambda
+					gaussPoint = gaussLegendrePoints.get(pointIteration); // the Gauss-Legendre point
+					gaussWeight = gaussLegendreWeights.get(weightIteration); // the Gauss-Legendre weight
+					// term coming from changing the integration limits
+					variableChanged = 0.5*(gaussPoint*(Math.log(springConstant+Math.exp(3.5))-3.5)+3.5+Math.log(springConstant+Math.exp(3.5)));
+					lambda = (Math.exp(variableChanged)-Math.exp(3.5))/particles.springConstant;
 					particles.lambda = lambda;
-					deltaF2Accumulator = 0; // reset deltaF2Accumulator to 0
-
+				
 					this.initialize();
 					return;
 				}
+				
+				else{
+					
+					deltaFAccumulator += (0.5*gaussWeight)*(Math.log(particles.springConstant+Math.exp(3.5))-3.5)*(Math.exp(variableChanged))/particles.springConstant*(particles.meanPairEnergy()-particles.meanSpringEnergy()); //<U_pair - U_spring>
+					// increment the counters
+					pointIteration++;
+					weightIteration++;
 
+					if (pointIteration < gaussLegendrePoints.size() && weightIteration < gaussLegendreWeights.size()) {
+						gaussWeight = gaussLegendreWeights.get(weightIteration);
+						gaussPoint = gaussLegendrePoints.get(pointIteration); // set the value of x (for the change of variables)
+						// comes from changing the limits for the Gauss-Legendre integration
+						variableChanged = 0.5*(gaussPoint*(Math.log(springConstant+Math.exp(3.5))-3.5)+3.5+Math.log(springConstant+Math.exp(3.5)));
+						// compute the value of lambda
+						lambda = (Math.exp(variableChanged)-Math.exp(3.5))/particles.springConstant;
+						particles.lambda = lambda;
+
+						this.initialize();
+						return;
+					}
+
+					else{
+						deltaFPerVol = deltaFAccumulator*(particles.N/particles.totalVol); //ΔF/V
+						
+						fPairPerVol = deltaFPerVol; // the pairEnergy of Interaction
+
+						control.println("fPairPerVol: "+fPairPerVol);
+
+						// the total free energy
+						totalFreeEnergy = referenceFRPerVol+deltaFPerVol+floryFEperVol;
+						control.println("totalF: " + totalFreeEnergy);
+
+						// update the array lists
+						dryVolFracs.add(dryVolFrac);
+						uPairPerVolList.add(uPairPerVol);
+						totalVolList.add(particles.totalVol);
+						reservoirVolFracList.add(particles.reservoirVolFrac); // the reservoir volume fraction list
+						swellingRatioList.add(particles.meanRadius()); // the swelling ratio list
+						pairFreeEnergyList.add(fPairPerVol);
+						totalSumOfEnergiesList.add(totalFreeEnergy);
+
+						// increment the dry volume fraction
+						dryVolFrac += particles.dphi;
+						particles.dryVolFrac = dryVolFrac;
+						//reset lambda to 1 for the interacting solid
+						lambda = 1;
+						particles.lambda = lambda;
+						deltaFAccumulator = 0; //reset UPairMinusUSpring
+						//reset the iterations
+						pointIteration = 0;
+						weightIteration = 0;
+
+						this.initialize();
+						return;
+					}
+				}
+				
 			}
+
+			if (dryVolFracs.size() > 2){
 				// Variables to store free energy values for the current, previous, and next pairs
 				double currentPairFreeEnergy = Double.NaN;
 				double previousPairFreeEnergy = Double.NaN;
@@ -371,8 +444,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					control.println("Current Flory Free Energy = " + currentFloryFreeEnergy);
 
 					// Retrieve the initial values for free energy from the previous iteration
-					initialFreeEnergy = totalSumOfEnergiesList.get(i - 1); 
-					previousPairFreeEnergy = pairFreeEnergyList.get(i - 1); 
+					initialFreeEnergy = totalSumOfEnergiesList.get(i - 1);
+					previousPairFreeEnergy = pairFreeEnergyList.get(i - 1);
 					previousFloryFreeEnergy = floryFEperVolList.get(i - 1);
 					control.println("Previous Pair Free Energy = " + previousPairFreeEnergy);
 					control.println("Previous Flory Free Energy = " + previousFloryFreeEnergy);
@@ -403,21 +476,21 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					pairPressure = ((dFPair_dPhi) * currentDryVolFrac - currentPairFreeEnergy); //  phi0*dF_FR/dPhi0 - F_FR
 
 					// Calculate contributions to pressure from Flory and pair interactions
-					floryPContribution = (floryPressure * currentVolume) / particles.N; // P_FR*V/N(KT)													
+					floryPContribution = (floryPressure * currentVolume) / particles.N; // P_FR*V/N(KT)
 					pairPContribution = (pairPressure * currentVolume) / particles.N; // P_pair*V/N(KT)
 
 					control.println("floryContribution = " + floryPContribution);
-					control.println("pairPContribution = " + pairPContribution);
 
 					/* Update the lists accordingly */
-					floryRehnerPressuresListEdited.add(floryPContribution); 
+					floryRehnerPressuresListEdited.add(floryPContribution);
 					pairPressuresListEdited.add(pairPContribution); // the F0 (eq. 48 from Vegas et. al.) already incldues the ideal gas free energy
 					calculatedPressures.add(floryPContribution + pairPContribution); // the calculated pressure from the derivatives of the free energies
 					chemicalPotentialList.add(chemicalPotential);
 				}
-
+			}
 			writeData();
 		}
+		
 
 		// plot mean energy, pressure, swelling ratio
 		energyData.append(0, particles.steps, particles.meanPairEnergy());
@@ -441,26 +514,26 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	 */
 	public void reset() {
 		enableStepsPerDisplay(true);
-		control.setValue("Lambda increment", 0.1);
-		control.setValue("DryVolFracStart", 0.016);
-		// control.setValue("upper limit", upperLimit);
-		control.setValue("DryVolFrac Max", 0.020);
+
+		// the original ones
+		// // control.setValue("upper limit", upperLimit);
+		// control.setValue("DryVolFrac Max", 0.003);
+		// control.setValue("DryVolFrac increment", 0.0001);
+
+		control.setValue("DryVolFracStart", 0.012);
+		control.setValue("DryVolFrac Max", 0.016);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
-		control.setValue("limit increment", xIncrement);
-		control.setValue("Spring constant", 10000);
-		// control.setValue("Initial configuration", "random-FCC");
-		control.setValue("N", 108); // number of particles
+		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
+		control.setValue("N", 32); // number of particles
+		control.setValue("x-link fraction", 0.001);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 0.001);
-		// control.setValue("Dry volume fraction", 0.01);
-		control.setValue("Young's calibration", 0.3); // 10-1000
+		control.setValue("Young's calibration", 1.0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
-		// control.setValue("chi", 0.2);
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0); // initially set to 0.05
+		control.setValue("Radius change tolerance", 0.0); // initially set to 0.05
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
 		control.setValue("Stop", 20000); // steps after which statistics collection stops
@@ -522,11 +595,11 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw.newLine();
 			bw.write("Mean swelling ratio: " + particles.meanRadius());
 			bw.newLine();
-			bw.write("Dry volume fraction: " + particles.dryVolFrac);
-			bw.newLine();
-			bw.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
-			bw.newLine();
-			bw.write("Actual volume fraction: " + particles.volFrac);
+			// bw.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
+			// bw.newLine();
+			// bw.write("Actual volume fraction: " + particles.volFrac);
+			// bw.newLine();
+			bw.write("DryVolFrac increment: " + particles.dphi);
 			bw.newLine();
 			bw.write("MC steps: " + particles.steps);
 			bw.newLine();
@@ -581,7 +654,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		}
 
 		try {
-			File outputFile = new File("data/HertzianSpheres"+particles.fileExtension+".txt");
+			File outputFile = new File("data/Free_Energy_Data/Interpenetration_Method_No_Size_Changes_Short_Run"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -593,8 +666,6 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			// write system parameters to the file
 			bw1.write("Number of particles: " + particles.N);
 			bw1.newLine();
-			bw1.write("springConstant: " + particles.springConstant);
-			bw1.newLine();
 			bw1.write("Initial configuration: " + particles.initConfig);
 			bw1.newLine();
 			bw1.write("Dry microgel radius [nm]: " + particles.dryR);
@@ -603,23 +674,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("Number of monomers: " + particles.nMon);
 			bw1.newLine();
-			bw1.write("Number of chains: " + particles.nChains);
-			bw1.newLine();
 			bw1.write("Flory interaction parameter (chi): " + particles.chi);
 			bw1.newLine();
 			bw1.write("Young's calibration factor: " + particles.Young);
 			bw1.newLine();
 			bw1.write("x-link fraction: " + particles.xLinkFrac);
 			bw1.newLine();
-			bw1.write("Reservoir swelling ratio: " + particles.reservoirSR);
-			bw1.newLine();
-			bw1.write("Mean swelling ratio: " + particles.meanRadius());
-			bw1.newLine();
-			bw1.write("Dry volume fraction: " + particles.dryVolFrac);
-			bw1.newLine();
-			bw1.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
-			bw1.newLine();
-			bw1.write("Actual volume fraction: " + particles.volFrac);
+			bw1.write("DryVolFrac increment: " + particles.dphi);
 			bw1.newLine();
 			bw1.write("MC steps: " + particles.steps);
 			bw1.newLine();
@@ -635,16 +696,12 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("g(r) bin width: " + particles.grBinWidth);
 			bw1.newLine();
-			bw1.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
-			bw1.newLine();
-			bw1.write("The coupling constant increment - dlambda: " + particles.dlambda);
-			bw1.newLine();
-			bw1.write("phi0,	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		F0/V,       F1/V,     F2/V,     <F_FR>/V,     <alpha>,      zeta, 		deltaF1MinusUlattice, 		newHertzianPotential");
+			bw1.write("phi0,	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter");
 			bw1.newLine();
 
 			for (int i = 1; i < dryVolFracs.size() - 1; i++) {
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + ", " + + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + ", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + ", " + (uPairPerVolList.get(i)-totalSumOfEnergiesList.get(i)+1.50) + ", " + f0PerVolumeList.get(i) + ", " + deltaF1List.get(i) + ", " + deltaF2PerVolumeList.get(i) + ", " +  floryFEperVolList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + ", " + deltaF1MinusUlatticeList.get(i) + ", " + newHertzianPotentialList.get(i));
+				bw1.write(roundedDryVolFrac + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + ", " + + meanPressures.get(i) +  ", " + pairPressuresListEdited.get(i) + ", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + ", " + (uPairPerVolList.get(i)-totalSumOfEnergiesList.get(i)+1.50) + ", " + referenceFRPerVolList.get(i) + ", " +  floryFEperVolList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + ", " + newHertzianPotentialList.get(i) + ", " + springConstantList.get(i) + ", " + lindemannParameterList.get(i));
 				bw1.newLine();
 			}
 			bw1.close();

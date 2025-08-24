@@ -1,92 +1,94 @@
+package org.opensourcephysics.sip.Hertz;
+
+import java.io.File;
+import java.util.Random;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
+import org.opensourcephysics.numerics.*;
+import org.opensourcephysics.numerics.PBC;
+import org.opensourcephysics.numerics.Root;
+
 /*
- * This is the root model where we start from before branching out to other models of the faceting algorithm.
+ * HertzSpheresInterpenetration.java
+ *
+ * Purpose:
+ *   Performs Monte Carlo simulations of compressible microgels using the Hertz interpenetration model and Flory-Rehner theory of polymer swelling.
  * 
- */
-
- package org.opensourcephysics.sip.Hertz;
- import org.opensourcephysics.numerics.*;
-
- import org.opensourcephysics.numerics.*;
- import org.opensourcephysics.numerics.PBC;
- import org.opensourcephysics.numerics.Root;
- import java.io.BufferedWriter;
- import java.io.File;
- import java.io.FileWriter;
- import java.io.IOException;
- import java.util.Random;
- 
-
-
-
-
-/**
- * HertzSpheres performs a Monte Carlo simulation of nonionic microgels interacting via the 
- * Hertz elastic pair potential and swelling according to the Flory-Rehner free energy.
- * 
- * @authors Alan Denton and Matt Urich
- * @version 1.2 25-05-2021
- * 
+ * Features:
+ *   - Models full pairwise interactions using the Hertzian elastic potential and Flory–Rehner free energy.
+ *   - Computes thermodynamic and structural properties:
+ *       * Total and pair interaction energies
+ *       * Flory–Rehner free energy contributions
+ *       * Virial pressure and volume fraction
+ *       * Spring (Einstein) energy and squared displacements
+ *   - Tracks size distributions and swelling behavior of particles
+ *   - Implements advanced interpenetration logic for overlapping microgels
+ *   - Includes Einstein solid reference system for free energy estimation
+ *
+ * Authors: Alan Denton and Matt Urich
+ * Edited by: Oreoluwa Alade
+ *
+ * Last Confirmed Working: September 2025
+ * Framework: Open Source Physics (OSP)
  */
 
 public class HertzSpheresInterpenetration {
    
-    public int N; // number of particles
-    public String initConfig; // initial configuration of particles
-    public int nx; // number of columns and rows in initial crystal lattice
-    public double side, totalVol; // side length and volume of cubic simulation box 
-    // Note: lengths are in units of dry microgel radius, energies in thermal (kT) units
-    public double d; // distance between neighboring lattice sites 
-    public double x[], y[], z[], a[]; // coordinates (x, y, z) and radius (a) of particles 
-    public double x0[], y0[], z0[];//to store the initial positions
-    public double energy[], energy1[]; // total energies of particles (Hertzian plus Flory-Rehner)
-    public double pairEnergy[][], newPairEnergy[][]; // pair energies of particles
-    public double totalEnergy, totalPairEnergy, totalFreeEnergy; // total energy of system
-    public double totalVirial; // total virial of system (for pressure calculation)
-    // various accumulators for computing thermodynamic properties
-    public double energyAccumulator, pairEnergyAccumulator, freeEnergyAccumulator, virialAccumulator;
-    public double tolerance, atolerance; // tolerances for trial p[article displacements, radius changes
-    public double monRadius, nMon, nChains, chi, xLinkFrac; // microgel parameters
-    public double B, Young; // prefactor of Hertz pair potential, Young's modulus calibration 
-    // if initial configuration is random, particles do not interact (scale=0) for delay/10 steps
-    public double scale; // scale factor (0 or 1) for prefactor of Hertz potential
-    public double dryR; // dry radius of particles
-    public double reservoirSR; // reservoir swelling ratio (infinite dilution)
-    // volume fractions of dry, swollen, and fully swollen (dilute) particles
-    public double dryVolFrac, volFrac, reservoirVolFrac, dryVolFracStart, dphi; 
-    public int steps; // number of Monte Carlo (MC) steps
-    public double delay, stop; // MC steps after which statistics are collected and not collected
-    public int snapshotInterval; // interval by which successive samples are separated
-    public double sizeDist[], sizeBinWidth; // particle radius histogram and bin width
-    public int numberBins; // number of histogram bins 
-    public double grBinWidth, maxRadius, deltaK; // bin widths and range
-    public double meanR; // mean particle radius
-    public double lambda, dlambda; // coupling constant parameters
-    public double mixFRSR, elasticFRSR, totalFRSR;
-    public double pairEnergySum; //parameters for the lambda = 1 system
-    public double initialEnergy; // initialEnergy when the particles are on their lattice sites
-    public double displacement, trialDisplacementDistance; // difference in coordinates
-    public double springEnergy, springEnergyAccumulator, springEnergySum, springConstant;//the parameters to calculate the spring energy and accumulate it
-    public double totalEinsteinEnergy, totalEinsteinPotential; //the potential energy associated with the eistein solid
-    public double dSpringEnergy, springEnergy0; // the spring energy parameters
-    public double pairPotentialCorrection; // change in harmonic potential energy
-    public double boltzmannFactorAccumulator, boltzmannFactor, squaredDisplacementAccumulator, volFracAccumulator;
-    public double dxOverN, dyOverN, dzOverN;
-    public String fileExtension; 
-    public double numberOfConfigurations;
-    public double density, nnDistance;
-    public double squaredDisplacement, squaredDisplacementSum;
-    public double oldFloryFR, newFloryFR;
-    public double capVolSum, capVolForI, capVolForJ;
-    public double volOfMicrogel[];
-    public double facetEnergy;
-    // Create a new Random object
-    public Random random = new Random();
+      public int N; // number of particles
+      public String initConfig; // initial configuration of particles
+      public int nx; // number of columns and rows in initial crystal lattice
+      public double side, totalVol; // side length and volume of cubic simulation box
+      // Note: lengths are in units of dry microgel radius, energies in thermal (kT) units
+      public double d; // distance between neighboring lattice sites
+      public double x[], y[], z[], a[]; // coordinates (x, y, z) and radius (a) of particles
+      public double x0[], y0[], z0[];//to store the initial positions
+      public double energy[], energy1[]; // total energies of particles (Hertzian plus Flory-Rehner)
+      public double pairEnergy[][], newPairEnergy[][]; // pair energies of particles
+      public double totalEnergy, totalPairEnergy, totalFreeEnergy; // total energy of system
+      public double totalVirial; // total virial of system (for pressure calculation)
+      // various accumulators for computing thermodynamic properties
+      public double energyAccumulator, pairEnergyAccumulator, freeEnergyAccumulator, virialAccumulator;
+      public double tolerance, atolerance; // tolerances for trial p[article displacements, radius changes
+      public double monRadius, nMon, nChains, chi, xLinkFrac; // microgel parameters
+      public double B, Young; // prefactor of Hertz pair potential, Young's modulus calibration
+      // if initial configuration is random, particles do not interact (scale=0) for delay/10 steps
+      public double scale; // scale factor (0 or 1) for prefactor of Hertz potential
+      public double dryR; // dry radius of particles
+      public double reservoirSR; // reservoir swelling ratio (infinite dilution)
+      // volume fractions of dry, swollen, and fully swollen (dilute) particles
+      public double dryVolFrac, volFrac, reservoirVolFrac, dryVolFracStart, dphi;
+      public int steps; // number of Monte Carlo (MC) steps
+      public double delay, stop; // MC steps after which statistics are collected and not collected
+      public int snapshotInterval; // interval by which successive samples are separated
+      public double sizeDist[], sizeBinWidth; // particle radius histogram and bin width
+      public int numberBins; // number of histogram bins
+      public double grBinWidth, maxRadius, deltaK; // bin widths and range
+      public double meanR; // mean particle radius
+      public double lambda, dlambda; // coupling constant parameters
+      public double mixFRSR, elasticFRSR, totalFRSR;
+      public double pairEnergySum; //parameters for the lambda = 1 system
+      public double initialEnergy; // initialEnergy when the particles are on their lattice sites
+      public double displacement, trialDisplacementDistance; // difference in coordinates
+      public double springEnergy, springEnergyAccumulator, springEnergySum, springConstant;//the parameters to calculate the spring energy and accumulate it
+      public double totalEinsteinEnergy, totalEinsteinPotential; //the potential energy associated with the eistein solid
+      public double dSpringEnergy, springEnergy0; // the spring energy parameters
+      public double pairPotentialCorrection; // change in harmonic potential energy
+      public double boltzmannFactorAccumulator, boltzmannFactor, squaredDisplacementAccumulator, volFracAccumulator;
+      public double dxOverN, dyOverN, dzOverN; // change in displacement per particle trial move
+      public String fileExtension; // file extension for output files
+      public double numberOfConfigurations; // number of configurations collected for averaging
+      public double density, nnDistance;  // density of particles and nearest neighbor distance
+      public double squaredDisplacement, squaredDisplacementSum;  // squared displacement of particles
+      public double oldFloryFR, newFloryFR;  // old and new Flory-Rehner free energies
+      public double volumeOfSolvent;  // volume of solvent in units of dry radius cubed
+      public double mixF_FR, mixF_Interpenetration;   // mixing free energy terms
 
    /**
     * Initialize the model.
-    * 
+    *
     * @param configuration
-    * Initial lattice structure 
+    * Initial lattice structure
     */
    public void initialize(String configuration) {
       x = new double[N]; // particle coordinates
@@ -99,14 +101,12 @@ public class HertzSpheresInterpenetration {
       z0 = new double[N];
 
       a = new double[N]; // particle radii (units of dry radius)
-      volOfMicrogel = new double[N];// the volume of a fully swollen microgel
 
       monRadius = 0.3; // estimate of monomer radius [nm]
       nMon = 0.63*Math.pow(dryR, 3.)/Math.pow(monRadius, 3.); // number of monomers in a microgel
-      nChains = xLinkFrac*nMon; // number of chains in a microgel 
+      nChains = xLinkFrac*nMon; // number of chains in a microgel
       reservoirSR = reservoirSwellingRatio(nMon, nChains, chi);
-
-      reservoirVolFrac = dryVolFrac*Math.pow(reservoirSR, 3.);
+      volumeOfSolvent = ((4*Math.PI)/3.0 * Math.pow(monRadius, 3))/Math.pow(dryR, 3); // in units of dry radius
 
       for (int i=0; i<N; i++){
 	      a[i] = reservoirSR; // initial particle radii (fully swollen)
@@ -128,10 +128,6 @@ public class HertzSpheresInterpenetration {
       dxOverN = 0; // change in displacement per particle trial move
       dyOverN = 0;
       dzOverN = 0;
-      volFrac = 0; // counter for system volume fraction
-
-      // set the seed of the random number generators
-      random.setSeed(12345);
 
       side = Math.cbrt(4.*Math.PI*N/dryVolFrac/3.); // side length of cubic simulation box
       totalVol = side*side*side; // box volume [units of dry radius cubed]
@@ -231,11 +227,11 @@ public class HertzSpheresInterpenetration {
             }
          }
       }
-      calculateTotalEnergy(lambda); 
+      calculateTotalEnergy(lambda);
       initialEnergy = totalPairEnergy; // initial energy when lambda = 1
    }
 
-  /**
+   /**
    * Place particles on sites of a BCC lattice.
    */
    public void setBCCpositions() {
@@ -297,7 +293,7 @@ public class HertzSpheresInterpenetration {
       calculateTotalEnergy(lambda); // initial energy
    }
 
-  /**
+   /**
    * Place particles at positions randomly displaced from sites of a BCC lattice.
    */
    public void setBCCrandomPositions() {
@@ -328,277 +324,254 @@ public class HertzSpheresInterpenetration {
       calculateTotalEnergy(lambda); // initial energy
    }
 
-   /**
+      /**
     * Do a Monte Carlo simulation step.
     */
    public void step() { // performs a trial move of every particle
       steps++;
-      double dxtrial, dytrial, dztrial, datrial;
-      double HertzEnergy;
-      double xij, yij, zij, de, r, r2, sigma;
-      double mixF, elasticF, totalF;
-      double firstMixOverlap, secondMixOverlap, firstMixNoOverlap, secondMixNoOverlap;
-      double mixF_Interpenetration;
+      double dxtrial;
+      double dytrial;
+      double dztrial;
+      double datrial;
+      double xij;
+      double yij;
+      double zij;
+      double de;
+      double r;
+      double r2;
+      double sigma;
+      double mixF;
+      double elasticF;
+      double totalF;
+      double capVolSum;
 
-      double volumeOfSolvent = (4*Math.PI)/3.0 * Math.pow(monRadius, 3);
       for (int i = 0; i < N; i++) { // attempt a trial move (displacement and size change)
-         int j;
 
-         // Calculate the volume of the fully swollen microgel
-         volOfMicrogel[i] = (4.0/3.0)*Math.PI*Math.pow(a[i], 3);
-         
-         dxtrial = tolerance*2.*(random.nextDouble()-0.5);         
-         dytrial = tolerance*2.*(random.nextDouble()-0.5);
-         dztrial = tolerance*2.*(random.nextDouble()-0.5);
-         datrial = atolerance*2.*(random.nextDouble()-0.5);
+         dxtrial = tolerance * 2.0 * (Math.random() - 0.5);
+         dytrial = tolerance * 2.0 * (Math.random() - 0.5);
+         dztrial = tolerance * 2.0 * (Math.random() - 0.5);
+         datrial = atolerance * 2.0 * (Math.random() - 0.5);
 
          // Euclidean distance of trial displacements
-         trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
-         
-         //the Euclidean distance between the current position and the initial position of each particle and the accumulated shift in the center of mass
-         double dxi = x[i]-x0[i]-dxOverN;
-         double dyi = y[i]-y0[i]-dyOverN;
-         double dzi = z[i]-z0[i]-dzOverN;
-         // displacement = (dxi*dxi)+(dyi*dyi)+(dzi*dzi);
-         
-         //Flory-Rehner Free energy before size changes
-         mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-         elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-         oldFloryFR = elasticF + mixF; // total FR before the trial move
+         trialDisplacementDistance = dxtrial*dxtrial + dytrial*dytrial + dztrial*dztrial;
 
-         x[i] += dxtrial; // trial displacement 
-         y[i] += dytrial;                       
+         // displacement relative to initial positions (with COM shift)
+         double dxi = x[i] - x0[i] - dxOverN;
+         double dyi = y[i] - y0[i] - dyOverN;
+         double dzi = z[i] - z0[i] - dzOverN;
+
+         // Flory-Rehner free energy BEFORE size changes
+         double ai0 = a[i];
+         double ai0_2 = ai0 * ai0;
+         double ai0Cubed = ai0_2 * ai0;
+         mixF    = nMon * ((ai0Cubed - 1.0) * Math.log(1.0 - 1.0 / ai0Cubed) + chi * (1.0 - 1.0 / ai0Cubed));
+         elasticF = 1.5 * nChains * (ai0_2 - Math.log(ai0) - 1.0);
+         oldFloryFR = elasticF + mixF;
+
+         // apply trial move
+         x[i] += dxtrial;
+         y[i] += dytrial;
          z[i] += dztrial;
-         a[i] += datrial; // trial radius change
-	 
-         // pairEnergySum = 0;
-         // capVolSum = 0;
-         // firstMixOverlap=0; 
-         // secondMixOverlap=0; 
-         // firstMixNoOverlap=0;
-         // secondMixNoOverlap=0;
-         mixF_Interpenetration = 0;
-         pairPotentialCorrection = 2*springConstant*Math.sqrt((dxtrial*dxi+dytrial*dyi+dztrial*dzi)*(dxtrial*dxi+dytrial*dyi+dztrial*dzi))+(1-1/(double)N)*trialDisplacementDistance; // change in spring energy
+         a[i] += datrial;
 
-         for (j = 0; j < N; j++) {
-            if(j != i) { // consider interactions with other particles
-               xij = PBC.separation(x[i]-x[j], side);
-               yij = PBC.separation(y[i]-y[j], side);
-               zij = PBC.separation(z[i]-z[j], side);
-               r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-	            sigma = a[i] + a[j];
-               capVolSum = 0;
-	            if (r2 < sigma*sigma){
+         // spring energy correction
+         double dot = dxtrial*dxi + dytrial*dyi + dztrial*dzi;
+         pairPotentialCorrection = 2.0 * springConstant * Math.abs(dot)+ (1.0 - 1.0 / N) * trialDisplacementDistance;
+
+         mixF_Interpenetration = 0.0;
+
+         double ai = a[i];
+         double ai2 = ai * ai;
+         double ai3 = ai2 * ai;
+         double phipi = 1.0 / ai3;
+
+         for (int j = 0; j < N; j++) {
+               if (j == i) continue; // consider interactions with other particles
+
+               xij = PBC.separation(x[i] - x[j], side);
+               yij = PBC.separation(y[i] - y[j], side);
+               zij = PBC.separation(z[i] - z[j], side);
+               r2  = xij*xij + yij*yij + zij*zij;
+               sigma = ai + a[j];
+               double sigma2 = sigma * sigma;
+
+               // Define phipi and phipj without Math.pow
+               double aj = a[j];
+               double aj2 = aj * aj;
+               double aj3 = aj2 * aj;
+               double phipj = 1.0 / aj3;
+
+               // Rewriting the expressions in terms of phipi and phipj
+               double firstMixOverlap   = (1.0 - phipi - phipj) * Math.log(1.0 - phipi - phipj);
+               double secondMixOverlap  = chi * (1.0 - phipi - phipj) * (phipi + phipj);
+               double firstMixNoOverlap = (1.0 - phipi) * Math.log(1.0 - phipi) + chi * (1.0 - phipi) * phipi;
+               double secondMixNoOverlap= (1.0 - phipj) * Math.log(1.0 - phipj) + chi * (1.0 - phipj) * phipj;
+
+               if (r2 < sigma2) {
                   r = Math.sqrt(r2);
-                  // Hertz pair potential amplitude (scaled by factor of scale*Young)
-                  // B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-		            // B = 0;
-                  // HertzEnergy = B*Math.pow(1-r/sigma, 2.5);
-                  // newPairEnergy[i][j] = HertzEnergy;
-                  // pairEnergySum+=HertzEnergy;
 
-                  // Compute heights of the caps
-                  double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
-                  double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
+                  // prefactor B
+                  B = scale * Young * nChains * (sigma * sigma) * Math.sqrt(ai * aj) / (ai3 + aj3);
 
-                  // Compute cap volume
-                  capVolForI = (Math.PI*Math.pow(hi, 2)*(3.0*a[i]-hi))/3.0;
-                  capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0;
+                  // heights of the caps
+                  double hi = (aj - ai + r) * (aj + ai - r) / (2.0 * r);
+                  double hj = (ai - aj + r) * (ai + aj - r) / (2.0 * r);
 
-                  capVolSum = (capVolForI+capVolForJ);
+                  // cap volumes
+                  double hi2 = hi * hi, hj2 = hj * hj;
+                  double capVolForI = (Math.PI * hi2 * (3.0 * ai - hi)) / 3.0;
+                  double capVolForJ = (Math.PI * hj2 * (3.0 * aj - hj)) / 3.0;
+                  capVolSum = capVolForI + capVolForJ;
+
+                  mixF_FR = (capVolSum / volumeOfSolvent)
+                           * (firstMixOverlap + secondMixOverlap - firstMixNoOverlap - secondMixNoOverlap);
+
+                  newPairEnergy[i][j] = mixF_FR;
+                  mixF_Interpenetration += mixF_FR;
+               } else {
+                  mixF_FR = 0.0;
+                  newPairEnergy[i][j] = 0.0;
                   
-	            }
-
-               /* The original expression I was using */
-
-               //firstMixOverlap = 1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)) * Math.log(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)));
-               firstMixOverlap = (1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * Math.log(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)));
-               secondMixOverlap = chi*(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * ((1/Math.pow(a[i], 3)) + (1/Math.pow(a[j], 3)));
-               // firstMixNoOverlap = ((1-(1/Math.pow(a[i], 3)))*Math.log(1-(1/Math.pow(a[i], 3))) + chi*(1-(1/Math.pow(a[i], 3))*Math.log(1-(1/Math.pow(a[i], 3)))));
-               // secondMixNoOverlap = ((1-(1/Math.pow(a[j], 3)))*Math.log(1-(1/Math.pow(a[j], 3))) + chi*(1-(1/Math.pow(a[j], 3))*Math.log(1-(1/Math.pow(a[j], 3)))));
-
-               firstMixNoOverlap = (1-(1/Math.pow(a[i], 3)))*Math.log(1-(1/Math.pow(a[i], 3))) + chi*(1-(1/Math.pow(a[i], 3))) * (1/Math.pow(a[i], 3));
-               secondMixNoOverlap = (1-(1/Math.pow(a[j], 3)))*Math.log(1-(1/Math.pow(a[j], 3))) + chi*(1-(1/Math.pow(a[j], 3))) * (1/Math.pow(a[j], 3));
-
-
-               // mixingFRAfterMove = capVolSumAfterMove/volumeOfSolvent*(firstMix-secondMix);
-               mixF_Interpenetration += (capVolSum/volumeOfSolvent)*(firstMixOverlap+secondMixOverlap-firstMixNoOverlap-secondMixNoOverlap);
-
-            }
-         
+               }
          }
-        
-         // Flory-Rehner single-particle free energy (associated with swelling)
-	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-	      elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-	      newFloryFR = elasticF + mixF; // after the trial move
 
-         // double newNMon = nMon*(volOfMicrogel[i]-capVolSum)/volOfMicrogel[i]; // number of Monomers to compute the new FR free energy
-         // mixF = newNMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/(a[i]*a[i]*a[i]))+chi*(1-1/(a[i]*a[i]*a[i])));
-         // elasticF = 1.5*newNMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-         // newFloryFR = mixF+elasticF;
+         // Flory-Rehner single-particle free energy AFTER the trial move
+         double ai_new = a[i];
+         double ai_new2 = ai_new * ai_new;
+         double ai_new3 = ai_new2 * ai_new;
+         mixF = nMon * ((ai_new3 - 1.0) * Math.log(1.0 - 1.0 / ai_new3) + chi * (1.0 - 1.0 / ai_new3));
+         elasticF = 1.5 * nChains * (ai_new2 - Math.log(ai_new) - 1.0);
+         newFloryFR = elasticF + mixF;
 
-         de = (mixF_Interpenetration-energy[i])+(newFloryFR-oldFloryFR); // change in total energy due to trial move
+         // Metropolis criterion
+         de = lambda * (mixF_Interpenetration - energy[i]) + (1.0 - lambda) * (pairPotentialCorrection) + (newFloryFR - oldFloryFR);
 
-         //de = lambda*(mixF_Interpenetration-energy[i])+(1-lambda)*pairPotentialCorrection+(newFloryFR-oldFloryFR); // change in total energy due to trial move
+         if (Math.exp(-de) < Math.random()) { // reject move
+               x[i] -= dxtrial;
+               y[i] -= dytrial;
+               z[i] -= dztrial;
+               a[i] -= datrial;
+         } else { // accept move and update energies
+               dxOverN += dxtrial / (double) N;
+               dyOverN += dytrial / (double) N;
+               dzOverN += dztrial / (double) N;
 
-         if(Math.exp(-de) < random.nextDouble()){ // Metropolis algorithm
-            x[i] -= dxtrial; // reject move
-            y[i] -= dytrial;
-            z[i] -= dztrial;
-	         a[i] -= datrial;
-         } 
-         else { // accept move and update energies
-         // change in displacement per particle trial move: delta r/N
-            dxOverN += dxtrial/(double)N;
-            dyOverN += dytrial/(double)N;
-            dzOverN += dztrial/(double)N;
+               energy[i] = mixF_Interpenetration;
 
-            // energy[i] = pairEnergySum; // update energy of moved particle
-
-            // for (j = 0; j < N; ++j) { // update energies of other particles 
-            //    if(j != i) { // ensures that the particle i is not interacting with itself
-            //       energy[j] += newPairEnergy[i][j]-pairEnergy[i][j]; // For each pair of particles (i, j), it updates the energy of particle j based on the change in pair energy
-            //       pairEnergy[i][j] = newPairEnergy[i][j]; // updates the pair energy for the pair (i, j) with the new value calculated in the trial move 
-            //       pairEnergy[j][i] = newPairEnergy[i][j];
-            //    }
-            // }
-         }                                   
+               for (int j = 0; j < N; ++j) {
+                  if (j == i) continue;
+                  energy[j] += newPairEnergy[i][j] - pairEnergy[i][j];
+                  pairEnergy[i][j] = newPairEnergy[i][j];
+                  pairEnergy[j][i] = newPairEnergy[i][j];
+               }
+         }
       }
       calculateTotalEnergy(lambda); // new total energy
    }
 
+
    public void calculateTotalEnergy(double lambda) {
-      totalEnergy = 0;  //when lambda = 1
+      totalEnergy = 0;
       totalVirial = 0;
-      totalPairEnergy = 0;  //when lambda = 1
+      totalPairEnergy = 0;
       totalFreeEnergy = 0;
-      springEnergySum = 0; // total spring energy of the system
+      springEnergySum = 0;
       squaredDisplacementSum = 0;
-      double virialSum;
-      double xij, yij, zij, r, r2, sigma, dxi, dyi, dzi;
-      double derivPart, HertzEnergy;
-      double mixF, elasticF, totalF;
-      double fOverR, fx, fy, fz;
-      double firstMixOverlap=0, secondMixOverlap=0, firstMixNoOverlap=0, secondMixNoOverlap=0;
-      double volumeOfSolvent;
-      double mixF_Interpenetration;
 
-      volumeOfSolvent = (4*Math.PI)/3.0 * Math.pow(monRadius, 3);
-
-      for(int i = 0; i < N; ++i) {
-         int j;
-         pairEnergySum = 0; //for the lamba = 1 system
-         virialSum = 0;
+      for (int i = 0; i < N; ++i) {
          mixF_Interpenetration = 0;
-         
-         // the Euclidean distance between the current position and the initial position of each particle
-         dxi = x[i]-x0[i]-dxOverN;
-         dyi = y[i]-y0[i]-dyOverN;
-         dzi = z[i]-z0[i]-dzOverN;
-        
-         squaredDisplacement = Math.pow(dxi, 2)+Math.pow(dyi, 2)+Math.pow(dzi, 2); // the square displacement 
-         squaredDisplacementSum+=squaredDisplacement;
-         springEnergy = springConstant*squaredDisplacement; //since it is a single particle (i) component
-         springEnergySum += springEnergy; 
-         for(j = 0; j < N; ++j) {
-            if(j != i) { // consider interactions with other particles
-               xij = PBC.separation(x[i]-x[j], side);
-               yij = PBC.separation(y[i]-y[j], side);
-               zij = PBC.separation(z[i]-z[j], side);
-               r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
+         double virialSum = 0;
 
-               capVolSum = 0;
-	            sigma = a[i]+ a[j];
-	            if (r2 < sigma*sigma){
-                  r = Math.sqrt(r2);
-                  // Hertz pair potential amplitude for lambda = 1 system
-                  // B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-                  // B = 0;
-                  // derivPart = B*Math.pow(1-r/sigma, 1.5);
-                  // HertzEnergy = derivPart*(1-r/sigma);
-                  // pairEnergySum += HertzEnergy;
-                  // pairEnergy[i][j] = HertzEnergy; // pair energy of particles i and j
-		            // fOverR = (2.5/sigma)*derivPart/r;
-		            // fx = fOverR*xij; // pair force in x-direction
-		            // fy = fOverR*yij; // pair force in y-direction
-		            // fz = fOverR*zij; // pair force in z-direction
-		            // virialSum += xij*fx + yij*fy + zij*fz;
+         // displacement from initial position
+         double dxi = x[i] - x0[i] - dxOverN;
+         double dyi = y[i] - y0[i] - dyOverN;
+         double dzi = z[i] - z0[i] - dzOverN;
 
-                  // Compute heights of the caps
-                  double hi = (a[j]-a[i]+r)*(a[j]+a[i]-r)/(2.0*r);
-                  double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
+         // squared displacement + spring energy
+         squaredDisplacement = dxi*dxi + dyi*dyi + dzi*dzi;
+         squaredDisplacementSum += squaredDisplacement;
+         springEnergy = springConstant * squaredDisplacement;
+         springEnergySum += springEnergy;
 
-                  // Compute cap volume
-                  capVolForI = (Math.PI*Math.pow(hi, 2)*(3.0*a[i]-hi))/3.0;
-                  capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0;
+         for (int j = 0; j < N; ++j) {
+               if (j == i) continue;  // skip self
 
-                  capVolSum = (capVolForI+capVolForJ);
-	            }
+               double xij = PBC.separation(x[i] - x[j], side);
+               double yij = PBC.separation(y[i] - y[j], side);
+               double zij = PBC.separation(z[i] - z[j], side);
+               double r2  = xij*xij + yij*yij + zij*zij;
+               double sigma = a[i] + a[j];
 
-               // firstMixOverlap = (1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * Math.log(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)));
-               // secondMixOverlap = chi*(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * ((1/Math.pow(a[i], 3)) + (1/Math.pow(a[j], 3)));
-               // firstMixNoOverlap = ((1-(1/Math.pow(a[i], 3)))*Math.log(1-(1/Math.pow(a[i], 3))) + chi*(1-(1/Math.pow(a[i], 3))*Math.log(1-(1/Math.pow(a[i], 3)))));
-               // secondMixNoOverlap = ((1-(1/Math.pow(a[j], 3)))*Math.log(1-(1/Math.pow(a[j], 3))) + chi*(1-(1/Math.pow(a[j], 3))*Math.log(1-(1/Math.pow(a[j], 3)))));
+               // avoid repeated Math.pow
+               double ai3 = a[i] * a[i] * a[i];
+               double aj3 = a[j] * a[j] * a[j];
+               double phipi = 1.0 / ai3;
+               double phipj = 1.0 / aj3;
 
+               // mixing terms
+               double overlapTerm = 1 - phipi - phipj;
+               double firstMixOverlap = overlapTerm * Math.log(overlapTerm);
+               double secondMixOverlap = chi * overlapTerm * (phipi + phipj);
+               double firstMixNoOverlap = (1 - phipi) * Math.log(1 - phipi) + chi * (1 - phipi) * phipi;
+               double secondMixNoOverlap = (1 - phipj) * Math.log(1 - phipj) + chi * (1 - phipj) * phipj;
 
-                //firstMixOverlap = 1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)) * Math.log(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)));
-                firstMixOverlap = (1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * Math.log(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3)));
-                secondMixOverlap = chi*(1-(1/Math.pow(a[i], 3))-(1/Math.pow(a[j], 3))) * ((1/Math.pow(a[i], 3)) + (1/Math.pow(a[j], 3)));
-                // firstMixNoOverlap = ((1-(1/Math.pow(a[i], 3)))*Math.log(1-(1/Math.pow(a[i], 3))) + chi*(1-(1/Math.pow(a[i], 3))*Math.log(1-(1/Math.pow(a[i], 3)))));
-                // secondMixNoOverlap = ((1-(1/Math.pow(a[j], 3)))*Math.log(1-(1/Math.pow(a[j], 3))) + chi*(1-(1/Math.pow(a[j], 3))*Math.log(1-(1/Math.pow(a[j], 3)))));
- 
-                firstMixNoOverlap = (1-(1/Math.pow(a[i], 3)))*Math.log(1-(1/Math.pow(a[i], 3))) + chi*(1-(1/Math.pow(a[i], 3))) * (1/Math.pow(a[i], 3));
-                secondMixNoOverlap = (1-(1/Math.pow(a[j], 3)))*Math.log(1-(1/Math.pow(a[j], 3))) + chi*(1-(1/Math.pow(a[j], 3))) * (1/Math.pow(a[j], 3));
- 
+               if (r2 < sigma * sigma) {
+                  double r = Math.sqrt(r2);
+                  B = scale * Young * nChains * (sigma * sigma) * Math.sqrt(a[i] * a[j]) / (ai3 + aj3);
 
-               // mixingFRAfterMove = capVolSumAfterMove/volumeOfSolvent*(firstMix-secondMix);
-               mixF_Interpenetration += (capVolSum/volumeOfSolvent)*(firstMixOverlap+secondMixOverlap-firstMixNoOverlap-secondMixNoOverlap);
-     
-            }
+                  // lens cap volumes
+                  double hi = (a[j] - a[i] + r) * (a[j] + a[i] - r) / (2.0 * r);
+                  double hj = (a[i] - a[j] + r) * (a[i] + a[j] - r) / (2.0 * r);
+                  double capVolForI = (Math.PI * hi * hi * (3.0 * a[i] - hi)) / 3.0;
+                  double capVolForJ = (Math.PI * hj * hj * (3.0 * a[j] - hj)) / 3.0;
+                  double capVolSum = capVolForI + capVolForJ;
+
+                  mixF_FR = (capVolSum / volumeOfSolvent) *
+                           (firstMixOverlap + secondMixOverlap - firstMixNoOverlap - secondMixNoOverlap);
+               } else {
+                  mixF_FR = 0;
+               }
+
+               pairEnergy[i][j] = mixF_FR;
+               mixF_Interpenetration += mixF_FR;
          }
 
-         // Flory-Rehner single-particle free energy (associated with swelling)
-	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-	      elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-         //elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
-         
-	      totalF = elasticF + mixF; // Flory-Rehner free energy after the trial move
+         // Flory-Rehner free energy
+         double ai2 = a[i] * a[i];
+         double ai3 = a[i] * ai2;
+         double mixF = nMon * ((ai3 - 1) * Math.log(1 - 1.0 / ai3) + chi * (1 - 1.0 / ai3));
+         double elasticF = 1.5 * nChains * (ai2 - Math.log(a[i]) - 1);
+         double totalF = elasticF + mixF;
 
-         energy[i] = mixF_Interpenetration; 
+         energy[i] = mixF_Interpenetration;
 
-         mixFRSR = nMon*((reservoirSR*reservoirSR*reservoirSR-1)*Math.log(1-1/reservoirSR/reservoirSR/reservoirSR)+chi*(1-1/reservoirSR/reservoirSR/reservoirSR));
-         elasticFRSR = 1.5*nChains*(reservoirSR*reservoirSR-Math.log(reservoirSR)-1);
+         // reservoir correction
+         double resSR2 = reservoirSR * reservoirSR;
+         double resSR3 = resSR2 * reservoirSR;
+         mixFRSR = nMon * ((resSR3 - 1) * Math.log(1 - 1.0 / resSR3) + chi * (1 - 1.0 / resSR3));
+         elasticFRSR = 1.5 * nChains * (resSR2 - Math.log(reservoirSR) - 1);
+         totalFRSR = mixFRSR + elasticFRSR;
 
-         totalFRSR = mixFRSR + elasticFRSR; // total free energy associated with the reservoir state
-         totalF = totalF - totalFRSR;
-      
-         // totalPairEnergy += pairEnergySum; //when lambda = 1
+         totalF -= totalFRSR;
+
          totalFreeEnergy += totalF;
-	      totalVirial += virialSum;
-
+         totalPairEnergy += mixF_Interpenetration;
+         totalVirial += virialSum;
       }
 
-         // totalPairEnergy *= 0.5; // correct for double counting pairs
-   
-         if (steps > delay){
-            if ((steps-delay)%snapshotInterval==0){ // include configurations only after even number of intervals
-               numberOfConfigurations++;
-               totalVirial *= 0.5; // correct for double counting pairs
-               totalEnergy = totalPairEnergy + totalFreeEnergy;
-               pairEnergyAccumulator += totalPairEnergy; // when lambda = 1
-               energyAccumulator += totalEnergy; // running totals
-               freeEnergyAccumulator += totalFreeEnergy;
-               virialAccumulator += totalVirial; 
-               boltzmannFactorAccumulator += boltzmannFactor;
-               springEnergyAccumulator += springEnergySum; // accumulates all the spring energies
-               squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
-               
-               // Accumulate the volume fraction
-               volFracAccumulator += calculateVolumeFraction(); 
-            }
-         }
+      if (steps > delay && (steps - delay) % snapshotInterval == 0) {
+         numberOfConfigurations++;
+         totalVirial *= 0.5; // correct for double counting
+         totalEnergy = totalPairEnergy + totalFreeEnergy;
 
+         pairEnergyAccumulator += totalPairEnergy;
+         energyAccumulator += totalEnergy;
+         freeEnergyAccumulator += totalFreeEnergy;
+         virialAccumulator += totalVirial;
+         springEnergyAccumulator += springEnergySum;
+         squaredDisplacementAccumulator += squaredDisplacementSum;
+         volFracAccumulator += calculateVolumeFraction();
+      }
    }
 
    // mean energy per particle [kT units]
@@ -606,18 +579,18 @@ public class HertzSpheresInterpenetration {
       return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N
    }
 
+    // mean microgel volume fraction
+   public double meanVolFrac() {
+      return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
+   }
+
    // mean pair energy per particle [kT units]
    public double meanPairEnergy() {
       return pairEnergyAccumulator/N/numberOfConfigurations; // quantity <E_pair>/N
    }
 
-   // mean microgel volume fraction 
-   public double meanVolFrac() {
-      return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
-   }
-
    // einstein  free energy per particle (KT units)
-   public double einsteinFreeEnergy() { 
+   public double einsteinFreeEnergy() {
       // Assuming the dimension is 3D
       int d = 3; //the dimension
       return (initialEnergy-(d/2.0)*N*Math.log(Math.PI/springConstant))/N;
@@ -645,115 +618,97 @@ public class HertzSpheresInterpenetration {
       return 1+(1./3.)*meanVirial/N; // quantity PV/NkT //the 1 is coming from the ideal gas
    }
 
-   // public void sizeDistribution() {
-   //     int bin;
-   //     for (int i=0; i<N; i++){
-	//       bin = (int) (a[i]/sizeBinWidth);
-	//       sizeDist[bin]++;
-   //     }
-   // }
-
    public void sizeDistribution() {
-   int bin;
-   for (int i = 0; i < N; i++) {
-      bin = (int) (a[i] / sizeBinWidth);
-      if (bin >= 0 && bin < sizeDist.length) {
+      int bin;
+      for (int i=0; i<N; i++){
+         bin = (int) (a[i]/sizeBinWidth);
          sizeDist[bin]++;
-      } else {
-         // Handle the case where bin is out of bounds
-         System.err.println("Warning: bin index out of bounds: " + bin);
       }
    }
-}
 
-    
    public double meanRadius() { // mean radius [units of dry radius]
       double sum = 0, sumr = 0;
       if (steps > delay){
-	      for (int i=0; i<numberBins; i++){
-	        sum += sizeDist[i];
-	        sumr += i*sizeBinWidth*sizeDist[i];
-	      }
-	      meanR = sumr/sum;
+         for (int i=0; i<numberBins; i++){
+            sum += sizeDist[i];
+            sumr += i*sizeBinWidth*sizeDist[i];
+         }
+         meanR = sumr/sum;
         // System.out.println("mberBins " + numberBins);
-       }
-       else
-	      meanR = 0;
+      }
+      else
+      meanR = 0;
         // System.out.println("meanR " + meanR);
-
-       return meanR;
-    }
+      return meanR;
+   }
 
     /* compute mean volume fraction after stopping */
-    public double calculateVolumeFraction() { // instantaneous volume fraction 
-      double microgelVol, overlapVol; 
-      double xij, yij, zij, r, r2, sigma, da2, amin;
+    public double calculateVolumeFraction() { // instantaneous volume fraction
+         double microgelVol, overlapVol;
+         double xij, yij, zij, r, r2, sigma, da2, amin;
 
-      microgelVol = 0;
-      for (int i=0; i<N; i++) {
-          microgelVol += (4./3.)*Math.PI*a[i]*a[i]*a[i]; // sum volumes of spheres
-          for (int j=i+1; j<N; j++){
-              xij = PBC.separation(x[i]-x[j], side);
-              yij = PBC.separation(y[i]-y[j], side);
-              zij = PBC.separation(z[i]-z[j], side);
-              r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-              sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
-              da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
-              if (r2 < sigma*sigma){ // particles are overlapping 
-                  if (r2 < da2){ // one particle is entirely inside the other
-                      amin = Math.min(a[i],a[j]); // minimum of radii
-                      overlapVol = (4./3.)*Math.PI*amin*amin*amin; // volume of smaller particle
+         microgelVol = 0;
+         for (int i=0; i<N; i++) {
+               microgelVol += (4./3.)*Math.PI*a[i]*a[i]*a[i]; // sum volumes of spheres
+               for (int j=i+1; j<N; j++){
+                  xij = PBC.separation(x[i]-x[j], side);
+                  yij = PBC.separation(y[i]-y[j], side);
+                  zij = PBC.separation(z[i]-z[j], side);
+                  r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
+                  sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
+                  da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
+                  if (r2 < sigma*sigma){ // particles are overlapping
+                     if (r2 < da2){ // one particle is entirely inside the other
+                           amin = Math.min(a[i],a[j]); // minimum of radii
+                           overlapVol = (4./3.)*Math.PI*amin*amin*amin; // volume of smaller particle
+                     }
+                     else { // one particle is NOT entirely inside the other
+                           r = Math.sqrt(r2);
+                           overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
+                     }
+                     microgelVol -= overlapVol; // subtract overlap volume so we don't double-count
                   }
-                  else { // one particle is NOT entirely inside the other
-                      r = Math.sqrt(r2);
-                      overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
-                  }
-                  microgelVol -= overlapVol; // subtract overlap volume so we don't double-count
-              }
-          }
+               }
+         }
+         return microgelVol/totalVol;
       }
-      //volFrac += microgelVol/totalVol;
 
-      return microgelVol/totalVol;
-  }
+      /* reservoir swelling ratio as root of Flory-Rehner pressure */
+      public double reservoirSwellingRatio(double nMon, double nChains, double chi){
+         Function f = new FloryRehnerPressure(nMon, nChains, chi);
+         double xleft = 1.1;
+         double xright = 11.;
+         double epsilon = 1.e-06;
+         double x = Root.bisection(f, xleft, xright, epsilon);
+         return x;
+      }
 
-    /* reservoir swelling ratio as root of Flory-Rehner pressure */
-    public double reservoirSwellingRatio(double nMon, double nChains, double chi){
-        Function f = new FloryRehnerPressure(nMon, nChains, chi);
-        double xleft = 1.1;
-        double xright = 11.;
-        double epsilon = 1.e-06;
-        double x = Root.bisection(f, xleft, xright, epsilon);
-        return x;
-    }
+      class FloryRehnerPressure implements Function{
+         double nMon, nChains, chi;
 
-    class FloryRehnerPressure implements Function{
-        double nMon, nChains, chi;
+         /**
+            * Constructs the FloryRehnerPressure function with the given parameters.
+            * @param _nMon double
+            * @param _nChains double
+            * @param _chi double
+            */
+         FloryRehnerPressure(double _nMon, double _nChains, double _chi) {
+            nMon = _nMon;
+            nChains = _nChains;
+            chi = _chi;
+         }
 
-        /**
-         * Constructs the FloryRehnerPressure function with the given parameters.
-         * @param _nMon double
-         * @param _nChains double
-         * @param _chi double
-         */
-        FloryRehnerPressure(double _nMon, double _nChains, double _chi) {
-          nMon = _nMon;
-          nChains = _nChains;
-          chi = _chi;
-        }
+         public double evaluate(double x) {
+            double pMixing = nMon*(x*x*x*Math.log(1.-1./x/x/x)+1.+chi/x/x/x);
+            double pElastic = nChains*(x*x-0.5);
+            double pressure = pMixing + pElastic;
+            return pressure;
+         }
 
-        public double evaluate(double x) {
-          double pMixing = nMon*(x*x*x*Math.log(1.-1./x/x/x)+1.+chi/x/x/x);
-          double pElastic = nChains*(x*x-0.5);
-          double pressure = pMixing + pElastic;
-          return pressure;
-        }
-
-    }
+      }
 
 }
-
-/* 
+/*
  * Open Source Physics software is free software; you can redistribute
  * it and/or modify it under the terms of the GNU General Public License (GPL) as
  * published by the Free Software Foundation; either version 2 of the License,

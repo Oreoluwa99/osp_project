@@ -1,7 +1,26 @@
 /*
- * This code is set up to compute the Lindemann parameter for the non-local facet and interpenetration algorithm. 
- * Updated last on the 29th of September, 2024
+ * HertzSpheresFacetAndInterpenetrationApp.java
+ *
+ * Purpose:
+ *   Computes the Lindemann parameter for compressible microgels modeled using 
+ *  
+ *     1. Non-local facet model
+ *     2. Interpenetration model 
+ * 
+ * Features:
+ *   - Performs Monte Carlo simulations of microgel particles
+ *   - Calculates structural and thermodynamic quantities such as:
+ *       * Lindemann parameter
+ *       * Mean swelling ratio (alpha)
+ *       * Volume fraction and reservoir properties
+ *       * Radial distribution function and structure factor (optional)
+ *   - Visualizes particle configurations in 3D
+ *
+ * Authors: Alan Denton and Oreoluwa Alade
+ * Version: 4.6-08-24
+ * Last Updated: September 29, 2024
  */
+
 
 package org.opensourcephysics.sip.Hertz;
 
@@ -23,23 +42,12 @@ import java.util.List;
 import java.util.ResourceBundle.Control;
 import java.util.ArrayList;
 
-/**
- * 
- * @authors Alan Denton and Oreoluwa Alade
- * @version 4.6-08-24
- * 
- */
 
 public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	//HertzSpheresNonLocalFacet_AlansEdits particles = new HertzSpheresNonLocalFacet_AlansEdits();
-	//HertzSpheresNonLocalFacetV2 particles = new HertzSpheresNonLocalFacetV2();
-	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration();	
-	//HertzSpheresFCCNearestNeighbors particles = new HertzSpheresFCCNearestNeighbors(); // With 12 nearest neigbours (code before Alan made changes)
-	//HertzSpheresNonLocalFacet_FullPairwise particles = new HertzSpheresNonLocalFacet_FullPairwise(); // with all the particles (code before Alan made changes)
+	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
 	
-	//HertzInterpenetrationFreeEnergies_Original particles = new HertzInterpenetrationFreeEnergies_Original();
-	HertzInterpenetrationFreeEnergies_Optimized particles = new HertzInterpenetrationFreeEnergies_Optimized(); // the optimized version of the interpenetration code
+	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
 
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -192,7 +200,7 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 			System.out.println("DryVolFrac = " + dryVolFrac + ", dryVolFracMax = " + dryVolFracMax);
 			if (dryVolFrac < dryVolFracMax) {
 				lambda = 1; // fully interacting system
-				particles.lambda = lambda; 
+				particles.lambda = lambda;
 
 				// compute the density
 				density = particles.N/particles.totalVol;

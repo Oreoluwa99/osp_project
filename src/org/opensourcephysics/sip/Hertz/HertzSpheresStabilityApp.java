@@ -40,8 +40,7 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
 
 	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // after Alan's change
-	//HertzInterpenetrationFreeEnergies particles = new HertzInterpenetrationFreeEnergies();
-	HertzSpheresNonLocalFacet_AlansEdits particles = new HertzSpheresNonLocalFacet_AlansEdits();
+	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration();
 
 	//HertzSpheresNonLocalFacet_FreeEnergies particles = new HertzSpheresNonLocalFacet_FreeEnergies();
 

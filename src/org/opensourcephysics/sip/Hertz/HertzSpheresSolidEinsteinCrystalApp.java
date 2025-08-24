@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.ResourceBundle.Control;
 import java.util.ArrayList;
 
-
 /**
  * HertzSpheresApp performs a Monte Carlo simulation of microgels interacting via the 
  * Hertz elastic pair potential and swelling according to the Flory-Rehner free energy.
