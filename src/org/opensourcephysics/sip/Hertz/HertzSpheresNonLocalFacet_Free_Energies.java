@@ -459,9 +459,9 @@ public class HertzSpheresNonLocalFacet_Free_Energies {
                double aj = a[j];
                double aj2 = aj * aj;
                double aj3 = aj2 * aj;
-               volOfMicrogel[j] = FOUR_THIRDS_PI * aj3; 
+               volOfMicrogel[j] = FOUR_THIRDS_PI * aj3;
 
-               xij = PBC.separation(x[i] - x[j], side); 
+               xij = PBC.separation(x[i] - x[j], side);
                yij = PBC.separation(y[i] - y[j], side);
                zij = PBC.separation(z[i] - z[j], side);
 
@@ -476,11 +476,11 @@ public class HertzSpheresNonLocalFacet_Free_Energies {
                   double aj_plus_ai_minus_r = (aj + ai - r);
                   double hi = (aj_minus_ai_plus_r * aj_plus_ai_minus_r) / (2.0 * r);
 
-                  double ai_minus_aj_plus_r = (ai - aj + r); 
-                  double ai_plus_aj_minus_r = (ai + aj - r); 
+                  double ai_minus_aj_plus_r = (ai - aj + r);
+                  double ai_plus_aj_minus_r = (ai + aj - r);
                   double hj = (ai_minus_aj_plus_r * ai_plus_aj_minus_r) / (2.0 * r);
 
-                  double hi2 = hi * hi, hj2 = hj * hj; 
+                  double hi2 = hi * hi, hj2 = hj * hj;
 
                   capVolForI = (Math.PI * hi2 * (3.0 * ai - hi)) / 3.0; // cap volume of i due to j
                   capVolForJ = (Math.PI * hj2 * (3.0 * aj - hj)) / 3.0; // cap volume of j due to i

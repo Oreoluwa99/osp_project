@@ -511,8 +511,8 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
             // Euclidean distance of trial displacements
             trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
    
-            x[i] += dxtrial; // trial displacement 
-            y[i] += dytrial;                       
+            x[i] += dxtrial; // trial displacement
+            y[i] += dytrial;
             z[i] += dztrial;
             a[i] += datrial; // trial radius change
 

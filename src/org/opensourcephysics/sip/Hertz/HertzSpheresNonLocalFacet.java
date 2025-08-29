@@ -10,7 +10,7 @@
    * This is the original version *before* optimizing to use only the 12 nearest neighbors
    * per microgel for FCC (as done in later versions).
    *
-   * This is the original version of the code I have before Alan make his edits, but this code works just fine.
+   * This is the original version of the code I have before Alan made his edits, but this code works just fine.
 
    *
    * Authors: Oreoluwa Alade and Alan Denton
@@ -399,11 +399,11 @@
                      double hj = (a[i]-a[j]+r)*(a[i]+a[j]-r)/(2.0*r);
                      // the individual caps of the microgels
                      capVolForI = (Math.PI*Math.pow(hi, 2)*(3.0*a[i]-hi))/3.0;
-                     capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0; 
+                     capVolForJ = (Math.PI*Math.pow(hj, 2)*(3.0*a[j]-hj))/3.0;
                      capVolSumBeforeMoveI += capVolForI;
                      //capVolJBeforeMove[j] = capVolForJ;
                      capVolBeforeTrialMove[i][j] = capVolForJ;
-                     capVolBeforeTrialMove[j][i] = capVolForI; 
+                     capVolBeforeTrialMove[j][i] = capVolForI;
                   }
                   else{ //if they are not overlapping
                      capVolBeforeTrialMove[i][j] = 0;

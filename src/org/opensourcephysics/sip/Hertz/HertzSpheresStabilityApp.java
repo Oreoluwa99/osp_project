@@ -5,7 +5,6 @@
  * 
  */
 
-
 package org.opensourcephysics.sip.Hertz;
 
 import java.io.File;

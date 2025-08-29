@@ -53,13 +53,13 @@ import java.util.ArrayList;
 
 public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	// HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
+	HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
 	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	// HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -515,11 +515,6 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		// the original ones
-		// // control.setValue("upper limit", upperLimit);
-		// control.setValue("DryVolFrac Max", 0.003);
-		// control.setValue("DryVolFrac increment", 0.0001);
-
 		control.setValue("DryVolFracStart", 0.012);
 		control.setValue("DryVolFrac Max", 0.016);
 		control.setValue("DryVolFrac increment", 0.0001);
@@ -654,7 +649,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		}
 
 		try {
-			File outputFile = new File("data/Free_Energy_Data/Interpenetration_Method_No_Size_Changes_Short_Run"+particles.fileExtension+".txt");
+			File outputFile = new File("ata/Comprehensive_Report_Data/Hertz_Spheres_Pamies_et_al/new_runs_to_validate_previous_results/Hertzian_Spheres_No_Size_Changes"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -674,6 +669,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("Number of monomers: " + particles.nMon);
 			bw1.newLine();
+			// bw1.write("Number of chains: " + particles.nChains);
+			// bw1.newLine();
 			bw1.write("Flory interaction parameter (chi): " + particles.chi);
 			bw1.newLine();
 			bw1.write("Young's calibration factor: " + particles.Young);
