@@ -47,7 +47,8 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
 	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
 	//HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors(); // with nearest neighbor interactions only for facet model
-	HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); // both interpenetration and facet algorithms
+	HertzSpheresNonLocalFacetNearestNeighbors_V2 particles = new HertzSpheresNonLocalFacetNearestNeighbors_V2(); // for Hertz spheres without facet interactions
+	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); // both interpenetration and facet algorithms
 
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -199,8 +200,6 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 		if (particles.steps == particles.stop) {
 			System.out.println("DryVolFrac = " + dryVolFrac + ", dryVolFracMax = " + dryVolFracMax);
 			if (dryVolFrac < dryVolFracMax) {
-				lambda = 1; // fully interacting system
-				particles.lambda = lambda;
 
 				// compute the density
 				density = particles.N/particles.totalVol;
@@ -254,21 +253,21 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 	public void reset() {
 		enableStepsPerDisplay(true);
 		//control.setValue("Lambda increment", 0.1);
-		control.setValue("DryVolFracStart", 0.01);
-		control.setValue("DryVolFrac Max", 0.06);
+		control.setValue("DryVolFracStart", 0.001);
+		control.setValue("DryVolFrac Max", 0.006);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
-		control.setValue("N", 108); // number of particles
+		control.setValue("N", 32); // number of particles
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 0.00005);
-		control.setValue("Young's calibration", 1.0); // 10-1000
+		control.setValue("x-link fraction", 0.00003);
+		control.setValue("Young's calibration", 1); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
 		control.setValue("Radius change tolerance", 0.0); // initially set to 0.05
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
-		control.setValue("Stop", 20000); // steps after which statistics collection stops
+		control.setValue("Stop", 100000); // steps after which statistics collection stops
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
@@ -374,8 +373,8 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 
 		try {
 			//File outputFile = new File("data/Lindemann_Parameter/StabilityData"+particles.fileExtension+".txt");
-			File outputFile = new File("data/Comprehensive_Report_Data/Hertz_Spheres_Pamies_et_al/Lindemann_Parameter_108_Hertzian_Spheres_xlink_5e-5"+particles.fileExtension+".txt");
-			//File outputFile = new File("data/Comprehensive_Report_Data/Interpenetration/Lindemann_Parameter_108_Microgels_x_link_3e-5_Optimized"+particles.fileExtension+".txt");
+			File outputFile = new File("data/Comprehensive_Report_Data/Hertz_Spheres_Pamies_et_al/Lindemann_Parameter_32_Microgels_x_link_5e-5"+particles.fileExtension+".txt");
+			//File outputFile = new File("data/Comprehensive_Report_Data/Interpenetration/Lindemann_Parameter_32_Microgels_x_link_5e-4"+particles.fileExtension+".txt");
 
 
 			if (!outputFile.exists()) {

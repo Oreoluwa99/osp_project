@@ -18,7 +18,7 @@ import java.io.IOException;
  */
 
 public class HertzSpheres {
-	
+   
     public int N; // number of particles
     public String initConfig; // initial configuration of particles
     public int nx; // number of columns and rows in initial crystal lattice
@@ -26,8 +26,10 @@ public class HertzSpheres {
     // Note: lengths are in units of dry microgel radius, energies in thermal (kT) units
     public double d; // distance between neighboring lattice sites 
     public double x[], y[], z[], a[]; // coordinates (x, y, z) and radius (a) of particles 
-    public double energy[]; // total energies of particles (Hertzian plus Flory-Rehner)
+    public double x0[], y0[], z0[];//to store the initial positions
+    public double energy[], energy1[]; // total energies of particles (Hertzian plus Flory-Rehner)
     public double pairEnergy[][], newPairEnergy[][]; // pair energies of particles
+    public double pairEnergy1[][]; //pairenergy for the lambda = 1 system
     public double totalEnergy, totalPairEnergy, totalFreeEnergy; // total energy of system
     public double totalVirial; // total virial of system (for pressure calculation)
     // various accumulators for computing thermodynamic properties
@@ -40,7 +42,7 @@ public class HertzSpheres {
     public double dryR; // dry radius of particles
     public double reservoirSR; // reservoir swelling ratio (infinite dilution)
     // volume fractions of dry, swollen, and fully swollen (dilute) particles
-    public double dryVolFrac, volFrac, reservoirVolFrac; 
+    public double dryVolFrac, volFrac, reservoirVolFrac, dryVolFracStart, dphi; 
     public int steps; // number of Monte Carlo (MC) steps
     public double delay, stop; // MC steps after which statistics are collected and not collected
     public int snapshotInterval; // interval by which successive samples are separated
@@ -48,19 +50,38 @@ public class HertzSpheres {
     public int numberBins; // number of histogram bins 
     public double grBinWidth, maxRadius, deltaK; // bin widths and range
     public double meanR; // mean particle radius
+    public double lambda, dlambda; // coupling constant parameters
+    public double mixFRSR, elasticFRSR, totalFRSR;
+    public double B1, derivPart1, HertzEnergy1, pairEnergySum1, totalPairEnergy1, pairEnergyAccumulator1; //parameters for the lambda = 1 system
+    public double totalEnergy1, energyAccumulator1; //total energy for lamba = 1 system
+    public double fx1, fy1, fz1, virialSum1, totalVirial1, virialAccumulator1;
+    public double initialEnergy; // initialEnergy when the particles are on their lattice sites
+    public double displacement, trialDisplacementDistance; // difference in coordinates
+    public double springEnergy, springEnergyAccumulator, springEnergySum, springConstant = 1.0;//the parameters to calculate the spring energy and accumulate it
+    public double totalEinsteinEnergy, totalEinsteinPotential; //the potential energy associated with the eistein solid
+    public double dSpringEnergy, springEnergy0; // the spring energy parameters
+    public double sumX[], sumY[], sumZ[], CM_initialX[], CM_initialY[], CM_initialZ[]; //for the center of masses
+    public double pairPotentialCorrection; // change in harmonic potential energy
+    public double pairPotentialDifferenceAccumulator, boltzmannFactor;
+    public double systemDifferencePairPotential; // difference between the interacting einstein crystal and system of interest
     public String fileExtension; 
 
-
    /**
-   * Initialize the model.
-   * 
-   * @param configuration
-   *  Initial lattice structure 
-   */
+    * Initialize the model.
+    * 
+    * @param configuration
+    * Initial lattice structure 
+    */
    public void initialize(String configuration) {
       x = new double[N]; // particle coordinates
       y = new double[N];
       z = new double[N];
+      
+      //the coordinates for the new particles
+      x0 = new double[N];
+      y0 = new double[N];
+      z0 = new double[N];
+
       a = new double[N]; // particle radii (units of dry radius)
 
       monRadius = 0.3; // estimate of monomer radius [nm]
@@ -70,20 +91,26 @@ public class HertzSpheres {
       reservoirVolFrac = dryVolFrac*Math.pow(reservoirSR, 3.);
 
       for (int i=0; i<N; i++){
-	  a[i] = reservoirSR; // initial particle radii (fully swollen)
+	      a[i] = reservoirSR; // initial particle radii (fully swollen)
       }
 
       energy = new double[N]; // total energies of particles
+      energy1 = new double[N];
       pairEnergy = new double[N][N]; // pair energies of particles
+      pairEnergy1 = new double[N][N]; 
       newPairEnergy = new double[N][N];
       steps = 1;
       energyAccumulator = 0;
       pairEnergyAccumulator = 0;
       freeEnergyAccumulator = 0;
+      pairEnergyAccumulator1 = 0; //for the lamba = 1 system
       virialAccumulator = 0;
+      springEnergyAccumulator = 0;
+      pairPotentialDifferenceAccumulator = 0;
       volFrac = 0; // counter for system volume fraction
       side = Math.cbrt(4.*Math.PI*N/dryVolFrac/3.); // side length of cubic simulation box
       totalVol = side*side*side; // box volume [units of dry radius cubed]
+      //System.out.println("total volume: " + totalVol);
 
       numberBins = (int) (maxRadius/sizeBinWidth);
 
@@ -117,8 +144,8 @@ public class HertzSpheres {
    }
 
    /**
-   * Place particles on sites of a simple cubic lattice.
-   */
+    * Place particles on sites of a simple cubic lattice.
+    */
    public void setSCpositions() {
       System.out.println("SC");
       int ix, iy, iz;
@@ -142,12 +169,12 @@ public class HertzSpheres {
             }
          }
       }
-      calculateTotalEnergy(); // initial energy
+      calculateTotalEnergy(lambda); // initial energy
    }
 
    /**
-   * Place particles on sites of an FCC lattice.
-   */
+    * Place particles on sites of an FCC lattice.
+    */
    public void setFCCpositions() {
       System.out.println("FCC");
       int ix, iy, iz;
@@ -164,19 +191,28 @@ public class HertzSpheres {
             for (iz = 0; iz < 2*nx; iz++) { // loop through particles in a layer
                if (i < N) { // check for remaining particles
                   if ((ix+iy+iz)%2 == 0) { // check for remaining particles
+                     //the final equilibrium positions of all the particles
                      x[i] = ix * d/2.;
                      y[i] = iy * d/2.;
                      z[i] = iz * d/2.;
+
+                     // initial displacements
+                     x0[i] = x[i];
+                     y0[i] = y[i];
+                     z0[i] = z[i];
                      i++;
+
                   }
                }
             }
          }
       }
-      calculateTotalEnergy(); // initial energy
+      
+      calculateTotalEnergy(lambda); // initial energy 
+      initialEnergy = pairEnergyAccumulator1;
    }
 
- /**
+  /**
    * Place particles on sites of a BCC lattice.
    */
    public void setBCCpositions() {
@@ -204,12 +240,12 @@ public class HertzSpheres {
             }
          }
       }
-      calculateTotalEnergy(); // initial energy
+      calculateTotalEnergy(lambda); // initial energy
    }
 
    /**
-   * Place particles at positions randomly displaced from sites of an FCC lattice.
-   */
+    * Place particles at positions randomly displaced from sites of an FCC lattice.
+    */
    public void setFCCrandomPositions() {
       System.out.println("random FCC");
       int ix, iy, iz;
@@ -235,10 +271,10 @@ public class HertzSpheres {
             }
          }
       }
-      calculateTotalEnergy(); // initial energy
+      calculateTotalEnergy(lambda); // initial energy
    }
 
- /**
+  /**
    * Place particles at positions randomly displaced from sites of a BCC lattice.
    */
    public void setBCCrandomPositions() {
@@ -266,15 +302,14 @@ public class HertzSpheres {
             }
          }
       }
-      calculateTotalEnergy(); // initial energy
+      calculateTotalEnergy(lambda); // initial energy
    }
 
 
    /**
-   * Do a Monte Carlo simulation step.
-   */
+    * Do a Monte Carlo simulation step.
+    */
    public void step() { // performs a trial move of every particle
-      System.out.println("Step");
       steps++;
       double dxtrial, dytrial, dztrial, datrial;
       double newEnergy, HertzEnergy;
@@ -287,46 +322,75 @@ public class HertzSpheres {
          dytrial = tolerance*2.*(Math.random()-0.5);
          dztrial = tolerance*2.*(Math.random()-0.5);
          datrial = atolerance*2.*(Math.random()-0.5);
+
+         springEnergy0 = springEnergy; //updates the initial spring energy
+
+         //Euclidean distance of trial displacements
+         trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
 	 
-         x[i] = PBC.position(x[i]+dxtrial, side); // trial displacement (periodic boundary conditions)
-         y[i] = PBC.position(y[i]+dytrial, side);
-         z[i] = PBC.position(z[i]+dztrial, side);
-	 a[i] += datrial; // trial radius change
+         x[i] += dxtrial; // trial displacement
+         y[i] += dytrial;
+         z[i] += dztrial;
+         a[i] += datrial; // trial radius change
 	 
          newEnergy = 0; // keep track of the change in energy after trial move
-	 
+
+         //the Euclidean distance between the current position and the initial position of each particle
+         double dxi = x[i]-x0[i];
+         double dyi = y[i]-y0[i];
+         double dzi = z[i]-z0[i];
+         displacement = (dxi*dxi)+(dyi*dyi)+(dzi*dzi);
+
+         //change in displacment per particle trial move: delta r/N
+         double dxOverN = dxtrial/(double)N;
+         double dyOverN = dytrial/(double)N;
+         double dzOverN = dztrial/(double)N;
+
+         springEnergy = springConstant*displacement; //the current spring energy
+         pairPotentialCorrection = 2*(dxtrial*dxi+dytrial*dyi+dztrial*dzi)+(1-1/(double)N)*trialDisplacementDistance;
+         dSpringEnergy = springEnergy - springEnergy0; //calculates the change in spring energy
+         dSpringEnergy += pairPotentialCorrection;
+
          for (int j = 0; j < N; j++) {
             if(j != i) { // consider interactions with other particles
-               xij = PBC.separation(x[i]-x[j], side);
-               yij = PBC.separation(y[i]-y[j], side);
-               zij = PBC.separation(z[i]-z[j], side);
+               xij = (x[i]-x[j]);
+               yij = (y[i]-y[j]);
+               zij = (z[i]-z[j]);
                r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-	       sigma = a[i] + a[j];
-	       if (r2 < sigma*sigma){
-                   r = Math.sqrt(r2);
-                   // Hertz pair potential amplitude (scaled by factor of scale*Young)
-                   B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-		   HertzEnergy = B*Math.pow(1-r/sigma, 2.5);
-                   newPairEnergy[i][j] = HertzEnergy;
-		   newEnergy += HertzEnergy;
-	       }
+	            sigma = a[i] + a[j];
+	            if (r2 < sigma*sigma){
+                  r = Math.sqrt(r2);
+                  // Hertz pair potential amplitude (scaled by factor of scale*Young)
+                  B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
+		            HertzEnergy = B*Math.pow(1-r/sigma, 2.5);
+                  newPairEnergy[i][j] = HertzEnergy;
+		            newEnergy += HertzEnergy;
+	            }
             }
-         }
+            
+         } 
 	 
          // Flory-Rehner single-particle free energy (associated with swelling)
-	 mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-	 elasticF = 1.5*nChains*(a[i]*a[i]-Math.log(a[i])-1);
-	 totalF = elasticF + mixF;
+	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
+	      elasticF = 1.5*nChains*(a[i]*a[i]-Math.log(a[i])-1);
+	      totalF = elasticF + mixF;
+
+         // Flory-Rehner single particle free energy for the fully swollen microgel
+         mixFRSR = nMon*((reservoirSR*reservoirSR*reservoirSR-1)*Math.log(1-1/reservoirSR/reservoirSR/reservoirSR)+chi*(1-1/reservoirSR/reservoirSR/reservoirSR));
+         elasticFRSR = 1.5*nChains*(reservoirSR*reservoirSR-Math.log(reservoirSR)-1);
+
+         totalFRSR = mixFRSR + elasticFRSR;
+         totalF = totalF - totalFRSR;
 	 
-	 newEnergy += totalF; // total energy after trial move
+	      newEnergy += totalF + springEnergy + dSpringEnergy; // total energy after trial move
          de = newEnergy-energy[i]; // change in total energy due to trial move
-	 
+         
          if(Math.exp(-de) < Math.random()) { // Metropolis algorithm
-            x[i] = PBC.position(x[i]-dxtrial, side); // reject move
-            y[i] = PBC.position(y[i]-dytrial, side);
-            z[i] = PBC.position(z[i]-dztrial, side);
-	    a[i] -= datrial;
-         }
+            x[i] -= dxtrial; // reject move
+            y[i] -= dytrial;
+            z[i] -= dztrial;
+	         a[i] -= datrial;
+         } 
          else { // accept move and update energies
             energy[i] = newEnergy; // update energy of moved particle
             for (int j = 0; j < N; ++j) { // update energies of other particles 
@@ -336,62 +400,96 @@ public class HertzSpheres {
                   pairEnergy[j][i] = newPairEnergy[i][j];
                }
             }
+            for (i = 0; i<N; ++i){ //accounts for the shift in the center of mass
+               x[i] -= dxOverN;
+               y[i] -= dyOverN;
+               z[i] -= dzOverN;
+            }
          }
       }
-      calculateTotalEnergy(); // new total energy
+      calculateTotalEnergy(lambda); // new total energy
 	  
    }
 
-   // total energy and virial (for pressure)
-   public void calculateTotalEnergy() {
+   public void calculateTotalEnergy(double lambda) {
       totalEnergy = 0;
+      totalEnergy1 = 0; //when lambda = 1
       totalVirial = 0;
+      totalPairEnergy = 0;
+      totalPairEnergy1 = 0; //when lambda = 1
+      totalFreeEnergy = 0;
+      springEnergySum = 0;
       double pairEnergySum, virialSum;
-      double xij, yij, zij, r, r2, sigma;
+      double xij, yij, zij, r, r2, sigma, x0i, y0i, z0i;
       double derivPart, HertzEnergy;
       double mixF, elasticF, totalF;
       double fOverR, fx, fy, fz;
       for(int i = 0; i < N; ++i) {
          pairEnergySum = 0;
+         pairEnergySum1 = 0; //for the lamba = 1 system
          virialSum = 0;
+         virialSum1 = 0;
+         //the Euclidean distance between the current position and the initial position of each particle
+         x0i = x[i]-x0[i];
+         y0i = y[i]-y0[i];
+         z0i = z[i]-z0[i];
+         displacement = (x0i*x0i)+(y0i*y0i)+(z0i*z0i);
+         springEnergy = springConstant*displacement; //since it is a single particle (i) component
+         springEnergySum += springEnergy;
          for(int j = 0; j < N; ++j) {
             if(j != i) { // consider interactions with other particles
-               xij = PBC.separation(x[i]-x[j], side);
-               yij = PBC.separation(y[i]-y[j], side);
-               zij = PBC.separation(z[i]-z[j], side);
+               xij = x[i]-x[j];
+               yij = y[i]-y[j];
+               zij = z[i]-z[j];
                r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-	       sigma = a[i]+ a[j];
-	       if (r2 < sigma*sigma){
+	            sigma = a[i]+ a[j];
+	            if (r2 < sigma*sigma){
                   r = Math.sqrt(r2);
                   // Hertz pair potential amplitude (scaled by a factor of scale*Young)
-                  B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-		  derivPart = B*Math.pow(1-r/sigma, 1.5);
-		  HertzEnergy = derivPart*(1-r/sigma);
-		  pairEnergySum += HertzEnergy;
+                  B = lambda*scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
+		            derivPart = B*Math.pow(1-r/sigma, 1.5);
+                  // Hertz pair potential amplitude for lambda = 1
+                  B1 = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
+                  derivPart1 = B1*Math.pow(1-r/sigma, 1.5);//when lambda = 1
+                  HertzEnergy = derivPart*(1-r/sigma);
+                  HertzEnergy1 = derivPart1*(1-r/sigma);//when lambda = 1
+		            pairEnergySum += HertzEnergy;
+                  pairEnergySum1 += HertzEnergy1;//when lambda = 1
                   pairEnergy[i][j] = HertzEnergy; // pair energy of particles i and j
-		  fOverR = (2.5/sigma)*derivPart/r;
-		  fx = fOverR*xij; // pair force in x-direction
-		  fy = fOverR*yij; // pair force in y-direction
-		  fz = fOverR*zij; // pair force in z-direction
-		  virialSum += xij*fx + yij*fy + zij*fz;
-	       }
+                  pairEnergy1[i][j] = HertzEnergy1;//when lambda = 1
+		            fOverR = (2.5/sigma)*derivPart/r;
+		            fx = fOverR*xij; // pair force in x-direction
+		            fy = fOverR*yij; // pair force in y-direction
+		            fz = fOverR*zij; // pair force in z-direction
+		            virialSum += xij*fx + yij*fy + zij*fz;
+	            }
             }
          }
 
          // Flory-Rehner single-particle free energy (associated with swelling)
-	 mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
-	 elasticF = 1.5*nChains*(a[i]*a[i]-Math.log(a[i])-1);
-	 if (a[i] < 0){ // particle radius should never be negative
-	     System.out.println("Negative radius: " + a[i]);
-	     System.out.println("Elastic free energy: " + elasticF);
-	 }
-	 totalF = elasticF + mixF; // Flory-Rehner free energy
+	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
+	      elasticF = 1.5*nChains*(a[i]*a[i]-Math.log(a[i])-1);
+	      if (a[i] < 0){ // particle radius should never be negative
+	         System.out.println("Negative radius: " + a[i]);
+	         System.out.println("Elastic free energy: " + elasticF);
+	      }
+	      totalF = elasticF + mixF; // Flory-Rehner free energy
 
-         energy[i] = pairEnergySum + totalF; // total energy of particle i
-	 totalPairEnergy += pairEnergySum;
+
+         mixFRSR = nMon*((reservoirSR*reservoirSR*reservoirSR-1)*Math.log(1-1/reservoirSR/reservoirSR/reservoirSR)+chi*(1-1/reservoirSR/reservoirSR/reservoirSR));
+         elasticFRSR = 1.5*nChains*(reservoirSR*reservoirSR-Math.log(reservoirSR)-1);
+
+         totalFRSR = mixFRSR + elasticFRSR;
+         totalF = totalF - totalFRSR;
+
+         energy[i] = pairEnergySum1 + totalF + springEnergy; // total energy of particle i for the lambda system
+
+	      totalPairEnergy += pairEnergySum;
+         totalPairEnergy1 += pairEnergySum1; //when lambda = 1
          totalFreeEnergy += totalF;
-	 totalVirial += virialSum;
-
+	      totalVirial += virialSum;
+       //  totalVirial1 += virialSum1; // when lambda = 1
+        
 /*
 	 if (steps > delay){
 	     totalPairEnergy += pairEnergySum;
@@ -403,55 +501,107 @@ public class HertzSpheres {
       }
 
       totalPairEnergy *= 0.5; // correct for double counting pairs
+      totalPairEnergy1 *= 0.5; // when lambda = 1 and correct for double counting pairs
       totalEnergy = totalPairEnergy + totalFreeEnergy;
+      totalEnergy1 = totalPairEnergy1 + totalFreeEnergy;//when lambda = 1
       totalVirial *= 0.5; // correct for double counting pairs
-
+      totalVirial1 *= 0.5; // correct for double counting pairs and when lambda = 1
       energyAccumulator += totalEnergy; // running totals
+      energyAccumulator1 += totalEnergy1;//when lambda = 1
       pairEnergyAccumulator += totalPairEnergy;
+      pairEnergyAccumulator1 += totalPairEnergy1;//when lambda = 1
+
+      boltzmannFactor = Math.exp(initialEnergy/N-pairEnergyAccumulator1/(double)(steps)/N);
+      System.out.println("initialEnergy = " + initialEnergy);
+   // System.out.println("boltzmannFactor = " + boltzmannFactor  + ", dryVolFrac = " + dryVolFrac);
+      pairPotentialDifferenceAccumulator += boltzmannFactor;
+   // System.out.println("pairPotentialDifferenceAccumulator = " + pairPotentialDifferenceAccumulator);
+      springEnergyAccumulator += springEnergySum;//accumulates all the spring energies
+
+      systemDifferencePairPotential = lambda*pairEnergyAccumulator1+(1-lambda)*(springEnergyAccumulator+pairEnergyAccumulator1);
+
       freeEnergyAccumulator += totalFreeEnergy;
-      virialAccumulator += totalVirial; 
+      virialAccumulator += totalVirial; //for the lambda system
+
    }
 
    // mean energy per particle [kT units]
    public double meanEnergy() {
-       return energyAccumulator/N/(double)(steps); // quantity <E>/N
+      return energyAccumulator/N/(double)(steps); // quantity <E>/N
    }
+/*    
+   public double meanEnergy1(){
+      return energyAccumulator1/N/(double) (steps); //quantity <E>/N when lambda = 1
+   }
+*/
 
    // mean pair energy per particle [kT units]
    public double meanPairEnergy() {
       return pairEnergyAccumulator/N/(double)(steps); // quantity <E_pair>/N
    }
 
+/* 
+   public double meanPairEnergy1(){
+      return pairEnergyAccumulator1/N/(double)(steps); // quantity <E_pair>/N for lambda = 1
+   }
+*/
+
+    /* calculates the difference in free energy between the interacting Einstein crystal and the system of interest */
+    public double calculateSystemFreeEnergyDifference(){
+      return systemDifferencePairPotential/N/(double)(steps);
+   }
+
+   //calculates the free energy difference between the ideal Einstein crystal and the interacting Einstein crystal
+   public double calculateFreeEnergyDifference(){ 
+      return (initialEnergy-Math.log(pairPotentialDifferenceAccumulator))/N/(double)(steps);
+   }
+
+   // einstein  free energy per particle (KT units)
+   public double einsteinFreeEnergy() { 
+      // Assuming the dimension is 3D
+      int d = 3; //the dimension
+      return (-(d/2.0)*N*Math.log(Math.PI/springConstant))/N;
+   }
+
    public double meanFreeEnergy() { // mean free energy per particle
       return freeEnergyAccumulator/N/(double)(steps); // quantity <F>/N
+   }
+
+   public double einsteinMeanPairEnergy(){ //mean pair energy per particle for the einstein crystal
+      //returns the total pair energy for the einstein crystal
+     // System.out.println("pairEnergyAccumulator1 = " + pairEnergyAccumulator1/(double)(steps)/N);
+     // System.out.println("springEnergyAccumulator = " + springEnergyAccumulator/(double)(steps));
+      return (pairEnergyAccumulator1/(double)(steps)-springEnergyAccumulator/(double)(steps))/N;
    }
 
    public double meanPressure() { // mean pressure (dimensionless)
       double meanVirial;
       meanVirial = virialAccumulator/(double)(steps);
-      return 1+(1./3.)*meanVirial/N; // quantity PV/NkT
+      return 1+(1./3.)*meanVirial/N; // quantity PV/NkT //the 1 is coming from the ideal gas
    }
 
    public void sizeDistribution() {
        int bin;
        for (int i=0; i<N; i++){
-	   bin = (int) (a[i]/sizeBinWidth);
-	   sizeDist[bin]++;
+	      bin = (int) (a[i]/sizeBinWidth);
+	      sizeDist[bin]++;
        }
    }
     
    public double meanRadius() { // mean radius [units of dry radius]
-       double sum = 0, sumr = 0;
-       if (steps > delay){
-	   for (int i=0; i<numberBins; i++){
-	       sum += sizeDist[i];
-	       sumr += i*sizeBinWidth*sizeDist[i];
-	   }
-	   meanR = sumr/sum;
+      double sum = 0, sumr = 0;
+      if (steps > delay){
+	      for (int i=0; i<numberBins; i++){
+	        sum += sizeDist[i];
+	        sumr += i*sizeBinWidth*sizeDist[i];
+	      }
+	      meanR = sumr/sum;
+        // System.out.println("mberBins " + numberBins);
        }
        else
-	   meanR = 0;
-       
+	      meanR = 0;
+        // System.out.println("meanR " + meanR);
+
        return meanR;
     }
 

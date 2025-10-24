@@ -23,15 +23,16 @@
  */
 package org.opensourcephysics.sip.Hertz;
 
+import java.io.File;
+import java.util.Random;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
 import org.opensourcephysics.numerics.*;
 import org.opensourcephysics.numerics.PBC;
 import org.opensourcephysics.numerics.Root;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.Random;
 
+/*
 /**
  * HertzSpheres performs a Monte Carlo simulation of nonionic microgels interacting via the 
  * Hertz elastic pair potential and swelling according to the Flory-Rehner free energy.
@@ -90,13 +91,13 @@ public class HertzSpheresSolidPhase {
       public double squaredDisplacement, squaredDisplacementSum;
       public double oldFloryFR, newFloryFR;
       // Create a new Random object
-      public Random random = new Random();
+      // public Random random = new Random();
 
       /**
        * Initialize the model.
       * 
       * @param configuration
-      * Initial lattice structure 
+      * Initial lattice structure
       */
       public void initialize(String configuration) {
          x = new double[N]; // particle coordinates
@@ -112,7 +113,7 @@ public class HertzSpheresSolidPhase {
 
          monRadius = 0.3; // estimate of monomer radius [nm]
          nMon = 0.63*Math.pow(dryR, 3.)/Math.pow(monRadius, 3.); // number of monomers in a microgel
-         nChains = xLinkFrac*nMon; // number of chains in a microgel 
+         nChains = xLinkFrac*nMon; // number of chains in a microgel
          reservoirSR = reservoirSwellingRatio(nMon, nChains, chi);
 
          reservoirVolFrac = dryVolFrac*Math.pow(reservoirSR, 3.);
@@ -138,9 +139,6 @@ public class HertzSpheresSolidPhase {
          dyOverN = 0;
          dzOverN = 0;
          volFrac = 0; // counter for system volume fraction
-
-         // set the seed of the random number generators
-         random.setSeed(12345);
 
          side = Math.cbrt(4.*Math.PI*N/dryVolFrac/3.); // side length of cubic simulation box
          totalVol = side*side*side; // box volume [units of dry radius cubed]
@@ -349,10 +347,10 @@ public class HertzSpheresSolidPhase {
 
          for (int i = 0; i < N; i++) { // attempt a trial move (displacement and size change)
             
-            dxtrial = tolerance*2.*(random.nextDouble()-0.5);
-            dytrial = tolerance*2.*(random.nextDouble()-0.5);
-            dztrial = tolerance*2.*(random.nextDouble()-0.5);
-            datrial = atolerance*2.*(random.nextDouble()-0.5);
+            dxtrial = tolerance*2.*(Math.random()-0.5);
+            dytrial = tolerance*2.*(Math.random()-0.5);
+            dztrial = tolerance*2.*(Math.random()-0.5);
+            datrial = atolerance*2.*(Math.random()-0.5);
 
             // Euclidean distance of trial displacements
             trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
@@ -393,7 +391,7 @@ public class HertzSpheresSolidPhase {
                      
                   }
                }
-            } 
+            }
             
             // Flory-Rehner single-particle free energy (associated with swelling)
             mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
@@ -409,7 +407,7 @@ public class HertzSpheresSolidPhase {
 
             de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+(newFloryFR-oldFloryFR); // change in total energy due to trial move
          
-            if(Math.exp(-de) < random.nextDouble()){ // Metropolis algorithm
+            if(Math.exp(-de) < Math.random()) { // Metropolis algorithm
                x[i] -= dxtrial; // reject move
                y[i] -= dytrial;
                z[i] -= dztrial;
@@ -459,7 +457,7 @@ public class HertzSpheresSolidPhase {
             squaredDisplacement = Math.pow(dxi, 2)+Math.pow(dyi, 2)+Math.pow(dzi, 2); // the square displacement 
             squaredDisplacementSum+=squaredDisplacement;
             springEnergy = springConstant*squaredDisplacement; //since it is a single particle (i) component
-            springEnergySum += springEnergy; 
+            springEnergySum += springEnergy;
             for(int j = 0; j < N; ++j) {
                if(j != i) { // consider interactions with other particles
                   xij = PBC.separation(x[i]-x[j], side);
@@ -516,7 +514,7 @@ public class HertzSpheresSolidPhase {
                   pairEnergyAccumulator += totalPairEnergy; // when lambda = 1
                   energyAccumulator += totalEnergy; // running totals
                   freeEnergyAccumulator += totalFreeEnergy;
-                  virialAccumulator += totalVirial; 
+                  virialAccumulator += totalVirial;
                   boltzmannFactorAccumulator += boltzmannFactor;
                   springEnergyAccumulator += springEnergySum; // accumulates all the spring energies
                   squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
@@ -533,11 +531,10 @@ public class HertzSpheresSolidPhase {
          return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N
       }
 
-          // mean microgel volume fraction
+      // mean microgel volume fraction
       public double meanVolFrac() {
          return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
       }
-
 
       // mean pair energy per particle [kT units]
       public double meanPairEnergy() {
@@ -545,7 +542,7 @@ public class HertzSpheresSolidPhase {
       }
 
       // einstein  free energy per particle (KT units)
-      public double einsteinFreeEnergy() { 
+      public double einsteinFreeEnergy() {
          // Assuming the dimension is 3D
          int d = 3; //the dimension
          return (initialEnergy-(d/2.0)*N*Math.log(Math.PI/springConstant))/N;
@@ -602,40 +599,41 @@ public class HertzSpheresSolidPhase {
       public double calculateVolumeFraction() { // instantaneous volume fraction
             double microgelVol, overlapVol;
             double xij, yij, zij, r, r2, sigma, da2, amin;
-
+   
             microgelVol = 0;
             for (int i=0; i<N; i++) {
                microgelVol += (4./3.)*Math.PI*a[i]*a[i]*a[i]; // sum volumes of spheres
                for (int j=i+1; j<N; j++){
-                     xij = PBC.separation(x[i]-x[j], side);
-                     yij = PBC.separation(y[i]-y[j], side);
-                     zij = PBC.separation(z[i]-z[j], side);
-                     r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
-                     sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
-                     da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
-                     if (r2 < sigma*sigma){ // particles are overlapping
+                  xij = PBC.separation(x[i]-x[j], side);
+                  yij = PBC.separation(y[i]-y[j], side);
+                  zij = PBC.separation(z[i]-z[j], side);
+                  r2 = xij*xij + yij*yij + zij*zij; // particle separation squared
+                  sigma = a[i]+a[j]; // sum of radii of two particles [units of dry radius]
+                  da2 = Math.pow(a[i]-a[j], 2); // difference of radii squared
+                  if (r2 < sigma*sigma){ // particles are overlapping
                         if (r2 < da2){ // one particle is entirely inside the other
                            amin = Math.min(a[i],a[j]); // minimum of radii
                            overlapVol = (4./3.)*Math.PI*amin*amin*amin; // volume of smaller particle
                         }
                         else { // one particle is NOT entirely inside the other
-                              r = Math.sqrt(r2);
-                              overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
+                           r = Math.sqrt(r2);
+                           overlapVol = Math.PI*(sigma-r)*(sigma-r)*(r2+2*r*sigma-3*da2)/12./r; // volume of lens-shaped overlap region
                         }
                         microgelVol -= overlapVol; // subtract overlap volume so we don't double-count
-                     }
+                        System.out.println(("microgelVol "+microgelVol));
+                  }
                }
             }
             //volFrac += microgelVol/totalVol;
-
             return microgelVol/totalVol;
       }
       
+
        /* reservoir swelling ratio as root of Flory-Rehner pressure */
       public double reservoirSwellingRatio(double nMon, double nChains, double chi){
          Function f = new FloryRehnerPressure(nMon, nChains, chi);
          double xleft = 1.1;
-         double xright = 15;
+         double xright = 15.;
          double epsilon = 1.e-06;
          double x = Root.bisection(f, xleft, xright, epsilon);
          return x;
@@ -664,6 +662,8 @@ public class HertzSpheresSolidPhase {
          }
 
       }
+
+
 
 
    }

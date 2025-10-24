@@ -1,4 +1,3 @@
-
 public class PBC {
 
     public static double separation(double d, double side) {
