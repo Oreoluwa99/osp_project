@@ -609,7 +609,7 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
                z[i] -= dztrial;
                a[i] -= datrial;
 
-            } 
+            }
             
             else { //accept move and update energy
                dxOverN += dxtrial / (double) N;
@@ -628,7 +628,7 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
                   // Update cap volumes
                   capVolBeforeTrialMove[i][j] = capVolAfterTrialMove[i][j];
                   capVolBeforeTrialMove[j][i] = capVolAfterTrialMove[j][i];
-            }           
+            }
 
                // Update capVolSumBeforeMoveArray with the new value
                capVolSumBeforeMoveArray[i] = capVolSumAfterMoveI;
