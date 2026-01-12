@@ -431,7 +431,7 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
 
       /**
        * Do a Monte Carlo simulation step.
-      */
+       */
       public void step() { // performs a trial move of every particle
          steps++;
          double dxtrial, dytrial, dztrial, datrial;

@@ -1,0 +1,19 @@
+#Number of particles: 108
+#Initial configuration: FCC
+#Dry microgel radius [nm]: 50.0
+#Box length [units of drsoftnessy radius]: 62.08931285802715
+#Number of monomers: 2916666.666666667
+#Number of chains: 97.70833333333334
+#Flory interaction parameter (chi): 0.0
+#Young's calibration factor: 1.0
+#x-link fraction: 3.35E-5
+#x-link fraction increment: 0.0
+#MC steps: 100000
+#Equilibration steps: 10000.0
+#Snapshot interval: 100
+#Displacement tolerance: 0.1
+#Particle radius change tolerance: 0.05
+#Particle radius bin width: 0.001
+#g(r) bin width: 0.005
+#phi0,		  phi,			 <alpha>,      		zeta, 	 	 	  lindemannParameter
+0.00187, 0.6009465815664722, 6.849013014403288, 0.0, 0.07842458069024194

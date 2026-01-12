@@ -38,7 +38,7 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
 
 	HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // after Alan's change
-	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration();
+	// HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration();
 
 	//HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors();
 
@@ -303,20 +303,20 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 		//control.setValue("Lambda increment", 0.1);
-		control.setValue("DryVolFracStart", 0.001);
-		control.setValue("DryVolFrac Max", 10.0);
-		control.setValue("DryVolFrac increment", 0.00001);
+		control.setValue("DryVolFracStart", 0.0055);
+		control.setValue("DryVolFrac Max", 0.0057);
+		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Initial configuration", "random-FCC");
 		control.setValue("N", 108); // number of particles
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 0.00003);
-		control.setValue("x-link fraction max", 0.001);
+		control.setValue("x-link fraction", 5.5e-4);
+		control.setValue("x-link fraction max", 5.6e-4);
 		// control.setValue("x-Link increment", 0.00000175);
-		control.setValue("x-Link increment", 0.00002853);
+		control.setValue("x-Link increment", 1.0e-5);
 		control.setValue("Young's calibration", 1.0); // 10-1000
-		control.setValue("chi", 0.0); // Flory interaction parameter
+		control.setValue("chi", 0); // Flory interaction parameter
 		// control.setValue("chi", 0.2);
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
@@ -327,8 +327,8 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
-		control.setValue("File extension", "2");
-		control.setValue("Calculate structure", false); // true means calculate g(r) and S(k)
+		control.setValue("File extension", "1");
+		control.setValue("Calculate structure", true); // true means calculate g(r) and S(k)
 		control.setAdjustableValue("Visualization on", true);
 	}
 
@@ -435,7 +435,7 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 		// Ensure the directory exists
 		try {
 			// File dir = new File("data/Lindemann_Parameter");
-			File dir = new File("data/Comprehensive_Report_Data/Interpenetration/smaller_xlink_and_longer_points/");
+			File dir = new File("data/ssf_data/");
 			if (!dir.exists()) {
 				if (dir.mkdirs()) {
 					System.out.println("Directory created: " + dir.getPath());
@@ -445,7 +445,7 @@ public class HertzSpheresStabilityApp extends AbstractSimulation {
 			}
 	
 			//File outputFile = new File(dir, "StabilityFaceting" + particles.fileExtension + ".txt");
-			File outputFile = new File(dir, "Stability_Non_Local_Facet_chi_0.1" + particles.fileExtension + ".txt");
+			File outputFile = new File(dir, "Stability_Facet_chi_0_phi_0.6" + particles.fileExtension + ".txt");
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
 			}
