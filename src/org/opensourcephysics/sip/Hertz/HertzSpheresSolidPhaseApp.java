@@ -53,13 +53,13 @@ import java.util.ArrayList;
 
 public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
+	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
 	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	// HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -515,12 +515,12 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.012);
+		control.setValue("DryVolFracStart", 0.010);
 		control.setValue("DryVolFrac Max", 0.016);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
-		control.setValue("N", 32); // number of particles
+		control.setValue("N", 108); // number of particles
 		control.setValue("x-link fraction", 0.001);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
@@ -528,7 +528,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0.0); // initially set to 0.05
+		control.setValue("Radius change tolerance", 0.05); 
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
 		control.setValue("Stop", 20000); // steps after which statistics collection stops
@@ -588,8 +588,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw.newLine();
 			bw.write("Reservoir swelling ratio: " + particles.reservoirSR);
 			bw.newLine();
-			bw.write("Mean swelling ratio: " + particles.meanRadius());
-			bw.newLine();
+			// bw.write("Mean swelling ratio: " + particles.meanRadius());
+			// bw.newLine();
 			// bw.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
 			// bw.newLine();
 			// bw.write("Actual volume fraction: " + particles.volFrac);
@@ -610,13 +610,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw.newLine();
 			bw.write("g(r) bin width: " + particles.grBinWidth);
 			bw.newLine();
-			bw.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
-			bw.newLine();
+			// bw.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
+			// bw.newLine();
 			bw.write("Mean pressure PV/NkT: " + particles.meanPressure());
 			bw.newLine();
-
-			bw.newLine();
-			bw.write("Mean free energy per particle <F>/N [kT]: " + particles.meanFreeEnergy());
 			bw.close();
 		}
 
@@ -649,7 +646,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		}
 
 		try {
-			File outputFile = new File("ata/Comprehensive_Report_Data/Hertz_Spheres_Pamies_et_al/new_runs_to_validate_previous_results/Hertzian_Spheres_No_Size_Changes"+particles.fileExtension+".txt");
+			File outputFile = new File("data/APS_2026/Facet/Facet_data"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();

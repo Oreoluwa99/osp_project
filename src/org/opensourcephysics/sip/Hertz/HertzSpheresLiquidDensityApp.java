@@ -24,8 +24,8 @@ import java.util.ArrayList;
  * HertzSpheresApp performs a Monte Carlo simulation of microgels interacting via the 
  * Hertz elastic pair potential and swelling according to the Flory-Rehner free energy.
  * 
- * @authors Alan Denton and Matt Urich
- * @version 1.2 25-05-2021
+ * @authors Alan Denton and Oreoluwa Alade
+ * @version 1.2 25-05-2025
  * 
  */
 
@@ -362,7 +362,7 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 		control.setValue("DryVolFrac Max", 0.02);
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
-		control.setValue("N", 32); // number of particles
+		control.setValue("N", 108); // number of particles
 		//control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
         control.setValue("Dry radius [nm]", 50);
         control.setValue("x-link fraction", 0.001);
@@ -493,7 +493,7 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 	    } 
 
 		try {
-			File outputFile = new File("data/HertzSpheresLiquid" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquid" + particles.fileExtension + ".txt");
 		
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -549,8 +549,8 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("g(r) bin width: " + particles.grBinWidth);
 			bw1.newLine();
-			bw1.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
-			bw1.newLine();
+			// bw1.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
+			// bw1.newLine();
 			bw1.write("The coupling constant increment - dlambda: " + particles.dlambda);
 			bw1.newLine();	
 			bw1.write("DryVolFrac, mu/kT, (PV/NKT)total, (PV/NKT)_Virial, (PV/NKT)_pair/calculated, (PV/NKT)_FR, <F_total>/V, QMelting, <F_id>/V, <F_pair>/V, <F_FR>/V,  <alpha>, Zeta");
