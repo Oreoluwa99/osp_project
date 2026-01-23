@@ -358,7 +358,7 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 	 */
 	public void reset() {
 		enableStepsPerDisplay(true);
-		control.setValue("DryVolFrac increment", 0.0001);
+		control.setValue("DryVolFrac increment", 0.0005);
 		control.setValue("DryVolFrac Max", 0.02);
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
@@ -369,10 +369,9 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
         // control.setValue("Dry volume fraction", 0.01);
         control.setValue("Young's calibration", 1.0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
-		//control.setValue("chi", 0.2);
         control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0);
+		control.setValue("Radius change tolerance", 0.05);
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples 
 		control.setValue("Stop", 20000); // steps after which statistics collection stops

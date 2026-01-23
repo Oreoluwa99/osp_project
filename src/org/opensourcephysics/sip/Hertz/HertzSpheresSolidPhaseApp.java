@@ -56,10 +56,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
-	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
+	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	//HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -520,7 +520,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
-		control.setValue("N", 108); // number of particles
+		control.setValue("N", 32); // number of particles
 		control.setValue("x-link fraction", 0.001);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
@@ -528,7 +528,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0.05); 
+		control.setValue("Radius change tolerance", 0.05);
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
 		control.setValue("Stop", 20000); // steps after which statistics collection stops
@@ -550,24 +550,25 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	}
 
 	public void writeData() {
-
+		// Normalize distributions (unchanged)
 		for (int i = 0; i < particles.maxRadius / particles.grBinWidth; i++) {
-			particles.sizeDist[i] = particles.sizeDist[i]/ ((particles.stop - particles.delay) / particles.snapshotInterval); // normalize size distribution
+			particles.sizeDist[i] = particles.sizeDist[i] / ((particles.stop - particles.delay) / particles.snapshotInterval);
 		}
+		particles.volFrac = particles.volFrac / ((particles.stop - particles.delay) / particles.snapshotInterval);
 
-		particles.volFrac = particles.volFrac / ((particles.stop - particles.delay) / particles.snapshotInterval); // average system volume fraction in equilibrium
-
-		// write system parameters to a file in the data subdirectory
+		// 1. Write system parameters to data/systemInfo*.txt
 		try {
 			File systemInfo = new File("data/systemInfo" + particles.fileExtension + ".txt");
-
-			if (!systemInfo.exists()) { // if file doesn't exist, create it
+			File systemDir = systemInfo.getParentFile();  // "data/"
+			if (systemDir != null && !systemDir.exists()) {
+				systemDir.mkdirs();
+			}
+			if (!systemInfo.exists()) {
 				systemInfo.createNewFile();
 			}
 
 			FileWriter fw = new FileWriter(systemInfo.getAbsoluteFile());
 			BufferedWriter bw = new BufferedWriter(fw);
-
 			bw.write("Number of particles: " + particles.N);
 			bw.newLine();
 			bw.write("Initial configuration: " + particles.initConfig);
@@ -588,12 +589,6 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw.newLine();
 			bw.write("Reservoir swelling ratio: " + particles.reservoirSR);
 			bw.newLine();
-			// bw.write("Mean swelling ratio: " + particles.meanRadius());
-			// bw.newLine();
-			// bw.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
-			// bw.newLine();
-			// bw.write("Actual volume fraction: " + particles.volFrac);
-			// bw.newLine();
 			bw.write("DryVolFrac increment: " + particles.dphi);
 			bw.newLine();
 			bw.write("MC steps: " + particles.steps);
@@ -610,23 +605,21 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw.newLine();
 			bw.write("g(r) bin width: " + particles.grBinWidth);
 			bw.newLine();
-			// bw.write("Mean pair energy <E_pair>/N [kT]: " + particles.meanPairEnergy());
-			// bw.newLine();
 			bw.write("Mean pressure PV/NkT: " + particles.meanPressure());
 			bw.newLine();
 			bw.close();
-		}
-
-		catch (IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
-		// write size distribution to a file in the data subdirectory
-
+		// 2. Write size distribution to data/microgelSize*.txt
 		try {
 			File sizeFile = new File("data/microgelSize" + particles.fileExtension + ".txt");
-
-			if (!sizeFile.exists()) { // if file doesn't exist, create it
+			File sizeDir = sizeFile.getParentFile();  // "data/"
+			if (sizeDir != null && !sizeDir.exists()) {
+				sizeDir.mkdirs();
+			}
+			if (!sizeFile.exists()) {
 				sizeFile.createNewFile();
 			}
 
@@ -636,18 +629,20 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 				bwrite.write(i + " " + particles.sizeDist[i]);
 				bwrite.newLine();
 			}
-
 			bwrite.close();
-
-		}
-
-		catch (IOException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 
+		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Facet/Facet_data"+particles.fileExtension+".txt");
+			File outputFile = new File("data/APS_2026/Penetration/Penetration_data" + particles.fileExtension + ".txt");
+			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
+			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
+			if (outputDir != null && !outputDir.exists()) {
+				outputDir.mkdirs();
+			}
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
 			}
@@ -655,7 +650,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			FileWriter fw1 = new FileWriter(outputFile.getAbsoluteFile());
 			BufferedWriter bw1 = new BufferedWriter(fw1);
 
-			// write system parameters to the file
+			// System params header
 			bw1.write("Number of particles: " + particles.N);
 			bw1.newLine();
 			bw1.write("Initial configuration: " + particles.initConfig);
@@ -666,8 +661,6 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("Number of monomers: " + particles.nMon);
 			bw1.newLine();
-			// bw1.write("Number of chains: " + particles.nChains);
-			// bw1.newLine();
 			bw1.write("Flory interaction parameter (chi): " + particles.chi);
 			bw1.newLine();
 			bw1.write("Young's calibration factor: " + particles.Young);
@@ -690,12 +683,26 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("g(r) bin width: " + particles.grBinWidth);
 			bw1.newLine();
+
+			// CSV Header
 			bw1.write("phi0,	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter");
 			bw1.newLine();
 
+			// Data rows (with NaN guard for safety)
 			for (int i = 1; i < dryVolFracs.size() - 1; i++) {
+				if (i >= chemicalPotentialList.size() || Double.isNaN(chemicalPotentialList.get(i))) {
+					System.err.println("Warning: Skipping row " + i + " due to NaN/missing data.");
+					continue;
+				}
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + ", " + + meanPressures.get(i) +  ", " + pairPressuresListEdited.get(i) + ", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + ", " + (uPairPerVolList.get(i)-totalSumOfEnergiesList.get(i)+1.50) + ", " + referenceFRPerVolList.get(i) + ", " +  floryFEperVolList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + ", " + newHertzianPotentialList.get(i) + ", " + springConstantList.get(i) + ", " + lindemannParameterList.get(i));
+				bw1.write(roundedDryVolFrac + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
+						", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + 
+						", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + 
+						", " + (uPairPerVolList.get(i) - totalSumOfEnergiesList.get(i) + 1.50) + 
+						", " + referenceFRPerVolList.get(i) + ", " + floryFEperVolList.get(i) + 
+						", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + 
+						", " + newHertzianPotentialList.get(i) + ", " + springConstantList.get(i) + 
+						", " + lindemannParameterList.get(i));
 				bw1.newLine();
 			}
 			bw1.close();
@@ -703,14 +710,11 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			e.printStackTrace();
 		}
 
-		// write radial distribution function, static structure factor to files in data
-		// subdirectory
-
+		// Write RDF/SSF if enabled (unchanged)
 		if (structure) {
 			rdf.writeRDF();
 			ssf.writeSSF();
 		}
-
 	}
 
 	/**
