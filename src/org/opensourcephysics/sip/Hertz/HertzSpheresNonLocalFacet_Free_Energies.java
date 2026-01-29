@@ -573,10 +573,10 @@ public class HertzSpheresNonLocalFacet_Free_Energies {
                if (r2 < sigma2) {
                   r = Math.sqrt(r2);
                   // Hertz energy
-                  double Bamp = scale * Young * nChains * (sigma2) * Math.sqrt(ai * aj) / (ai3 + aj3);
+                  B = scale * Young * nChains * (sigma2) * Math.sqrt(ai * aj) / (ai3 + aj3);
                   double oneMinus = 1.0 - r / sigma;
                   double sqrtOneMinus = Math.sqrt(Math.max(0.0, oneMinus));
-                  double derivPart = Bamp * oneMinus * sqrtOneMinus;
+                  double derivPart = B * oneMinus * sqrtOneMinus;
                   double HertzEnergy = derivPart * oneMinus;
                   newPairEnergy[i][j] = HertzEnergy;
                   pairEnergySum += HertzEnergy;
@@ -760,13 +760,13 @@ public class HertzSpheresNonLocalFacet_Free_Energies {
                   double r = Math.sqrt(r2);
 
                   // Hertz pair potential amplitude (lambda = 1 system)
-                  double Bamp = scale * Young * nChains * sigma2 * (sqrt_ai * sqrt_aj) / (ai3 + aj3); 
+                  B = scale * Young * nChains * sigma2 * (sqrt_ai * sqrt_aj) / (ai3 + aj3); 
 
                   // (1 - r/sigma) and its 1.5 power without pow()
                   double oneMinus = 1.0 - r / sigma;
                   if (oneMinus < 0.0) oneMinus = 0.0; // guard for fp noise
                   double sqrtOneMinus = Math.sqrt(oneMinus);
-                  double derivPart = Bamp * oneMinus * sqrtOneMinus; // (1-r/sigma)^{1.5}
+                  double derivPart = B * oneMinus * sqrtOneMinus; // (1-r/sigma)^{1.5}
 
                   // energy (1-r/sigma)^{2.5}
                   double HertzEnergy = derivPart * oneMinus;

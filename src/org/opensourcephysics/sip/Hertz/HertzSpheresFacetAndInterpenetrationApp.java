@@ -44,9 +44,9 @@ import java.util.ArrayList;
 
 public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
+	HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
 	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
-	HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors(); // with nearest neighbor interactions only for facet model
+	//HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors(); // with nearest neighbor interactions only for facet model
 	//HertzSpheresNonLocalFacetNearestNeighbors_V2 particles = new HertzSpheresNonLocalFacetNearestNeighbors_V2(); // for Hertz spheres without facet interactions
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); // both interpenetration and facet algorithms
 
@@ -253,13 +253,13 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 	public void reset() {
 		enableStepsPerDisplay(true);
 		//control.setValue("Lambda increment", 0.1);
-		control.setValue("DryVolFracStart", 0.0019);
-		control.setValue("DryVolFrac Max", 0.0022);
-		control.setValue("DryVolFrac increment", 0.0001);
+		control.setValue("DryVolFracStart", 0.00186);
+		control.setValue("DryVolFrac Max", 0.00189);
+		control.setValue("DryVolFrac increment", 0.00001);
 		control.setValue("Initial configuration", "FCC");
 		control.setValue("N", 108); // number of particles
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 3.35e-5);
+		control.setValue("x-link fraction", 3.4e-5);
 		control.setValue("Young's calibration", 1); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
@@ -373,9 +373,8 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 
 		try {
 			//File outputFile = new File("data/Lindemann_Parameter/StabilityData"+particles.fileExtension+".txt");
-			//File outputFile = new File("data/Comprehensive_Report_Data/Non_Local_Facet/Phi_Vs_Alpha_Nearest_Neighbour/Microgel_FCC_12nn_no_displacement_Y_1"+particles.fileExtension+".txt");
-			File outputFile = new File("data/ssf_data/facet_data"+particles.fileExtension+".txt");
-
+			//File outputFile = new File("data/APS_2026/Lindemann_vs_Phi/Lindemann_Ratio_Facet_nn"+particles.fileExtension+".txt");
+			File outputFile = new File("data/ssf_and_rdf_data/x_link_3.4E-5/facet_data_without_nn"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -386,6 +385,8 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 
 			// write system parameters to the file
 			bw1.write("#Number of particles: " + particles.N);
+			bw1.newLine();
+			bw1.write("#Dry volume fraction increment: " + particles.dphi);
 			bw1.newLine();
 			bw1.write("#Initial configuration: " + particles.initConfig);
 			bw1.newLine();

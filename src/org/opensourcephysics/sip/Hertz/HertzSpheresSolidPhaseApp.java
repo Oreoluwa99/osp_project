@@ -56,10 +56,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
-	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
+	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	//HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -138,6 +138,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	List<Double> referenceFRPerVolList = new ArrayList<>();
 	List<Double> springConstantList = new ArrayList<>();
 	List<Double> lindemannParameterList = new ArrayList<>();
+	List<Double> volumefractionList = new ArrayList<>();
+	List<Double> softnessList = new ArrayList<>();
 
 	DecimalFormat decimalFormat = new DecimalFormat("#.#######"); // to round my dryVolFrac values to 3 dp
 
@@ -381,6 +383,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 						swellingRatioList.add(particles.meanRadius()); // the swelling ratio list
 						pairFreeEnergyList.add(fPairPerVol);
 						totalSumOfEnergiesList.add(totalFreeEnergy);
+						volumefractionList.add(particles.meanVolFrac()); // the volume fraction list
+						softnessList.add(1.0/particles.B); // the softness list
 
 						// increment the dry volume fraction
 						dryVolFrac += particles.dphi;
@@ -515,13 +519,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.010);
-		control.setValue("DryVolFrac Max", 0.016);
+		control.setValue("DryVolFracStart", 0.002);
+		control.setValue("DryVolFrac Max", 0.004);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
 		control.setValue("N", 32); // number of particles
-		control.setValue("x-link fraction", 0.001);
+		control.setValue("x-link fraction", 0.00003);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
 		control.setValue("Young's calibration", 1.0); // 10-1000
@@ -685,7 +689,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 
 			// CSV Header
-			bw1.write("phi0,	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter");
+			bw1.write("phi0,	phi, 	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter, 		softness");
 			bw1.newLine();
 
 			// Data rows (with NaN guard for safety)
@@ -695,14 +699,15 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					continue;
 				}
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
+				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) +  + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
 						", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + 
 						", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + 
 						", " + (uPairPerVolList.get(i) - totalSumOfEnergiesList.get(i) + 1.50) + 
 						", " + referenceFRPerVolList.get(i) + ", " + floryFEperVolList.get(i) + 
 						", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + 
 						", " + newHertzianPotentialList.get(i) + ", " + springConstantList.get(i) + 
-						", " + lindemannParameterList.get(i));
+						", " + lindemannParameterList.get(i) +
+						", " + softnessList.get(i));
 				bw1.newLine();
 			}
 			bw1.close();

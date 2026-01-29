@@ -75,7 +75,7 @@ public class SSF {
 	normalize();
 
 	try{
-	    File ssfFile = new File("data/ssf" + extension + ".txt");
+	    File ssfFile = new File("data/ssf_and_rdf_data/x_link_3.4E-5/ssf" + extension + ".txt");
 	    
 	    if (!ssfFile.exists()) { // if file doesn't exist, create it
 		ssfFile.createNewFile();
