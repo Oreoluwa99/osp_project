@@ -760,7 +760,7 @@ public class HertzSpheresNonLocalFacet_Free_Energies {
                   double r = Math.sqrt(r2);
 
                   // Hertz pair potential amplitude (lambda = 1 system)
-                  B = scale * Young * nChains * sigma2 * (sqrt_ai * sqrt_aj) / (ai3 + aj3); 
+                  B = scale * Young * nChains * sigma2 * (sqrt_ai * sqrt_aj) / (ai3 + aj3);
 
                   // (1 - r/sigma) and its 1.5 power without pow()
                   double oneMinus = 1.0 - r / sigma;

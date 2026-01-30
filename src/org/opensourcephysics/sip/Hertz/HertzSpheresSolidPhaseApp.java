@@ -56,10 +56,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
-	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
+	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	//HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -385,6 +385,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 						totalSumOfEnergiesList.add(totalFreeEnergy);
 						volumefractionList.add(particles.meanVolFrac()); // the volume fraction list
 						softnessList.add(1.0/particles.B); // the softness list
+						control.println("softness: " + (1.0/particles.B));
 
 						// increment the dry volume fraction
 						dryVolFrac += particles.dphi;
@@ -519,7 +520,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.002);
+		control.setValue("DryVolFracStart", 0.0015);
 		control.setValue("DryVolFrac Max", 0.004);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
@@ -640,7 +641,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Penetration/Penetration_data" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Penetration/Free_Energy_Penetration" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
@@ -689,7 +690,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.newLine();
 
 			// CSV Header
-			bw1.write("phi0,	phi, 	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter, 		softness");
+			bw1.write("phi0,	phi, 	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter, 		kT/E");
 			bw1.newLine();
 
 			// Data rows (with NaN guard for safety)
