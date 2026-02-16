@@ -94,7 +94,10 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 	List<Double> dryVolFracsEdited = new ArrayList<>();
 	List<Double> totalVolList = new ArrayList<>();
 	List<Double> newHertzianPotentialList = new ArrayList<>();
-
+	List<Double> secondVirialCoefficientList = new ArrayList<>();
+	List<Double> reducedB2List = new ArrayList<>();
+	List<Double> hardSphereB2List = new ArrayList<>();
+	List<Double> volumefractionList = new ArrayList<>();
 
 	DecimalFormat decimalFormat = new DecimalFormat("#.#######"); // to round my dryVolFrac values
 
@@ -235,10 +238,26 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 					control.println("(1 - (nnDistance/(2 * particles.meanRadius()))) = " + (1 - (nnDistance/(2 * particles.meanRadius()))));
 					newHertzianPotentialList.add(newHertzianPotential);
 
+					// Calculate second virial coefficient
+					double currentAlpha = particles.meanRadius();
+					double B2 = particles.secondVirialCoefficient(currentAlpha, currentAlpha);
+					double sigma = 2.0 * currentAlpha;
+					double B2_HS = particles.hardSphereB2(sigma);
+					double B2_star = B2 / B2_HS;
+
+					control.println("Second virial coefficient B2 = " + B2);
+					control.println("Hard-sphere B2 = " + B2_HS);
+					control.println("Reduced B2* = B2/B2_HS = " + B2_star);
+
+					// Store in lists
+					secondVirialCoefficientList.add(B2);
+					hardSphereB2List.add(B2_HS);
+					reducedB2List.add(B2_star);
+
 					/* update the lists accordingly */
 					pairEperVolList.add(pairEperVol);
 					floryFperVolList.add(floryFperVol);
-					
+					volumefractionList.add(particles.meanVolFrac()); // the volume fraction list
 					totalFreeEnergies = floryFperVol+idealFreeEnergy+pairEperVol; // total free energy contribution
 					control.println("totalF/V = "+totalFreeEnergies);
 	
@@ -358,14 +377,14 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 	 */
 	public void reset() {
 		enableStepsPerDisplay(true);
-		control.setValue("DryVolFrac increment", 0.0005);
+		control.setValue("DryVolFrac increment", 0.001);
 		control.setValue("DryVolFrac Max", 0.02);
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
 		control.setValue("N", 108); // number of particles
 		//control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
         control.setValue("Dry radius [nm]", 50);
-        control.setValue("x-link fraction", 0.001);
+        control.setValue("x-link fraction", 0.00003); // 0.001
         // control.setValue("Dry volume fraction", 0.01);
         control.setValue("Young's calibration", 1.0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
@@ -492,7 +511,7 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 	    } 
 
 		try {
-			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquid" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquid_First_Path" + particles.fileExtension + ".txt");
 		
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -552,12 +571,11 @@ public class HertzSpheresLiquidDensityApp extends AbstractSimulation {
 			// bw1.newLine();
 			bw1.write("The coupling constant increment - dlambda: " + particles.dlambda);
 			bw1.newLine();	
-			bw1.write("DryVolFrac, mu/kT, (PV/NKT)total, (PV/NKT)_Virial, (PV/NKT)_pair/calculated, (PV/NKT)_FR, <F_total>/V, QMelting, <F_id>/V, <F_pair>/V, <F_FR>/V,  <alpha>, Zeta");
-			bw1.newLine();		
+			bw1.write("phi0, phi, mu/kT, (PV/NKT)total, (PV/NKT)_Virial, (PV/NKT)_pair/calculated, (PV/NKT)_FR, <F_total>/V, QMelting, <F_id>/V, <F_pair>/V, <F_FR>/V,  <alpha>, Zeta, B2, B2_HS, B2*");			bw1.newLine();		
 
 			for (int i = 1; i < dryVolFracs.size() - 1; i++) {
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + chemicalPotList.get(i) + ", " + (meanPressures.get(i)+floryRehnerPressuresListEdited.get(i)) + ", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + ", " +  floryRehnerPressuresListEdited.get(i) + ", " + totalSums.get(i) + ", "  + (uPairPerVolList.get(i)-totalSums.get(i) + 1.50) + ", " + idealFreeEnergyList.get(i)  + ", " + pairEperVolList.get(i)+ ", " + floryFperVolList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i));
+				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) + ", " + chemicalPotList.get(i) + ", " + (meanPressures.get(i)+floryRehnerPressuresListEdited.get(i)) + ", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + ", " +  floryRehnerPressuresListEdited.get(i) + ", " + totalSums.get(i) + ", "  + (uPairPerVolList.get(i)-totalSums.get(i) + 1.50) + ", " + idealFreeEnergyList.get(i)  + ", " + pairEperVolList.get(i)+ ", " + floryFperVolList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + ", " + secondVirialCoefficientList.get(i) + ", " + hardSphereB2List.get(i) + ", " + reducedB2List.get(i));
 				bw1.newLine();
 			}
 

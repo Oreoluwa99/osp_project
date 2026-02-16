@@ -32,7 +32,7 @@ public class HertzSpheresLiquidDensity {
     public double totalEnergy, totalPairEnergy, totalFreeEnergy; // total energy of system
     public double totalVirial; // total virial of system (for pressure calculation)
     // various accumulators for computing thermodynamic properties
-    public double energyAccumulator, pairEnergyAccumulator, freeEnergyAccumulator, virialAccumulator;
+    public double energyAccumulator, pairEnergyAccumulator, freeEnergyAccumulator, virialAccumulator, volFracAccumulator;
     public double tolerance, atolerance; // tolerances for trial p[article displacements, radius changes
     public double monRadius, nMon, nChains, chi, xLinkFrac; // microgel parameters
     public double B, Young, dYoung, highB; // prefactor of Hertz pair potential, Young's modulus calibration 
@@ -86,6 +86,7 @@ public class HertzSpheresLiquidDensity {
       freeEnergyAccumulator = 0;
       virialAccumulator = 0;
       numberOfConfigurations = 0;
+      volFracAccumulator = 0;
       volFrac = 0; // counter for system volume fraction
       side = Math.cbrt(4.*Math.PI*N/dryVolFrac/3.); // side length of cubic simulation box
       totalVol = side*side*side; // box volume [units of dry radius cubed]
@@ -311,7 +312,7 @@ public class HertzSpheresLiquidDensity {
                   r = Math.sqrt(r2);
                   // Hertz pair potential amplitude (scaled by factor of scale*Young)
                   B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-		            System.out.println("Hertz Amplitude: "+B);
+		            //System.out.println("Hertz Amplitude: "+B);
                   HertzEnergy = B*Math.pow(1-r/sigma, 2.5);
                   newPairEnergy[i][j] = HertzEnergy;
 		            newEnergy += HertzEnergy;
@@ -381,7 +382,7 @@ public class HertzSpheresLiquidDensity {
                   r = Math.sqrt(r2);
                   // Hertz pair potential amplitude (scaled by a factor of scale*Young)
                   B = scale*Young*nChains*Math.pow(sigma, 2.)*Math.sqrt(a[i]*a[j])/(Math.pow(a[i], 3.)+Math.pow(a[j], 3.)); 
-                  System.out.println("Hertz Amplitude: "+B);
+                  // System.out.println("Hertz Amplitude: "+B);
                   derivPart = B*Math.pow(1-r/sigma, 1.5);
 		            HertzEnergy = derivPart*(1-r/sigma);
 		            pairEnergySum += HertzEnergy;
@@ -429,6 +430,8 @@ public class HertzSpheresLiquidDensity {
             energyAccumulator += totalEnergy; // running totals
             freeEnergyAccumulator += totalFreeEnergy;
             virialAccumulator += totalVirial; 
+            // Accumulate volume fraction
+            volFracAccumulator += calculateVolumeFraction();
          }
       }
 
@@ -437,6 +440,11 @@ public class HertzSpheresLiquidDensity {
    // mean energy per particle [kT units]
    public double meanEnergy() {
       return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N
+   }
+
+   // mean microgel volume fraction
+   public double meanVolFrac() {
+      return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
    }
 
    // mean pair energy per particle [kT units]
@@ -478,8 +486,67 @@ public class HertzSpheresLiquidDensity {
        return meanR;
     }
 
+   /**
+     * Compute hard-sphere second virial coefficient for comparison.
+     * For hard spheres: B2 = (2π/3) * σ^3
+     */
+   public double hardSphereB2(double sigma) {
+      return (2.0 * Math.PI / 3.0) * Math.pow(sigma, 3.0);
+   }
+
+   public double secondVirialCoefficient(double alpha_i, double alpha_j) {
+      double sigma = alpha_i + alpha_j;  // contact distance (sum of radii)
+      
+      // Hertz amplitude
+      double hertz = Young * nChains * Math.pow(sigma, 2.0) * Math.sqrt(alpha_i * alpha_j) 
+                     / (Math.pow(alpha_i, 3.0) + Math.pow(alpha_j, 3.0));
+      
+      // 10-point Gauss-Legendre nodes
+      double[] xi = { 
+         -0.9739065285171717, -0.8650633666889845, -0.6794095682990244, 
+         -0.4333953941292472, -0.1488743389816312,  0.1488743389816312,
+            0.4333953941292472,  0.6794095682990244,  0.8650633666889845,
+            0.9739065285171717 
+      };
+      
+      // 10-point Gauss-Legendre weights
+      double[] wi = { 
+         0.0666713443086881, 0.1494513491505806, 0.2190863625159820,
+         0.2692667193099963, 0.2955242247147529, 0.2955242247147529,
+         0.2692667193099963, 0.2190863625159820, 0.1494513491505806,
+         0.0666713443086881 
+      };
+      
+      double sum = 0.0;
+      
+      // Gaussian quadrature over [-1, 1] transformed to [0, sigma]
+      // Transformation: r = (sigma/2)*(x + 1) where x in [-1,1]
+      for (int k = 0; k < 10; k++) {  // use 'k' to avoid conflict with parameter names
+         double x = xi[k];
+         double r = (sigma / 2.0) * (x + 1.0);  // transform from [-1,1] to [0,sigma]
+         
+         // Hertz potential at distance r
+         double vHertz = hertz * Math.pow(1.0 - r/sigma, 2.5);
+         
+         // Integrand: r^2 * [1 - exp(-v(r))]
+         double f = r * r * (1.0 - Math.exp(-vHertz));
+         
+         // Accumulate weighted sum
+         sum += wi[k] * f;
+      }
+      
+      // Multiply by Jacobian (sigma/2) from change of variables
+      double integral = (sigma / 2.0) * sum;
+      
+      // Multiply by 2π to get B2
+      double B2 = 2.0 * Math.PI * integral;
+      
+      return B2;
+   }
+
+
     /* compute mean volume fraction after stopping */
-    public void calculateVolumeFraction() { // instantaneous volume fraction 
+    public double calculateVolumeFraction() { // instantaneous volume fraction 
         double microgelVol, overlapVol; 
         double xij, yij, zij, r, r2, sigma, da2, amin;
 
@@ -506,14 +573,15 @@ public class HertzSpheresLiquidDensity {
                 }
             }
         }
-        volFrac += microgelVol/totalVol;
+        // volFrac += microgelVol/totalVol;
+        return microgelVol/totalVol;
     }
 
     /* reservoir swelling ratio as root of Flory-Rehner pressure */
     public double reservoirSwellingRatio(double nMon, double nChains, double chi){
         Function f = new FloryRehnerPressure(nMon, nChains, chi);
         double xleft = 1.1;
-        double xright = 6.;
+        double xright = 15.;
         double epsilon = 1.e-06;
         double x = Root.bisection(f, xleft, xright, epsilon);
         return x;

@@ -10,4 +10,6 @@
 # cd ~/home/mnt756/osp_project
 #javac -d classes/ -sourcepath src/ src/org/opensourcephysics/sip/$1.java && java -classpath classes/ org/opensourcephysics/sip/$1
 # Added "-classpath classes/" option (necessary on Ken's laptop, running Mint linux):
-javac -d classes/ -classpath classes/ -sourcepath src/ src/org/opensourcephysics/sip/$1.java && java -classpath classes/ org/opensourcephysics/sip/$1
+# javac -d classes/ -classpath classes/ -sourcepath src/ src/org/opensourcephysics/sip/$1.java && java -classpath classes/ org/opensourcephysics/sip/$1
+javac -d classes/ -classpath "classes/:lib/*" -sourcepath src/ src/org/opensourcephysics/sip/$1.java && java -classpath "classes/:lib/*" org/opensourcephysics/sip/$1
+

@@ -59,7 +59,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	//HertzSpheresNonLocalFacet_Free_Energies particles = new HertzSpheresNonLocalFacet_Free_Energies(); // For the facet algorithm with free energies
+	//HertzSpheresNonLocalFacetFreeEnergies particles = new HertzSpheresNonLocalFacetFreeEnergies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -520,12 +520,12 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.0015);
-		control.setValue("DryVolFrac Max", 0.004);
+		control.setValue("DryVolFracStart", 0.0011);
+		control.setValue("DryVolFrac Max", 0.0042);
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
-		control.setValue("N", 32); // number of particles
+		control.setValue("N", 108); // number of particles
 		control.setValue("x-link fraction", 0.00003);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
@@ -536,7 +536,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("Radius change tolerance", 0.05);
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
-		control.setValue("Stop", 20000); // steps after which statistics collection stops
+		control.setValue("Stop", 100000); // steps after which statistics collection stops
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
@@ -641,7 +641,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Penetration/Free_Energy_Penetration" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Solid_Phase/Penetration/Free_Energy_Penetration" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
@@ -700,7 +700,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					continue;
 				}
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) +  + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
+				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
 						", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + 
 						", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + 
 						", " + (uPairPerVolList.get(i) - totalSumOfEnergiesList.get(i) + 1.50) + 
