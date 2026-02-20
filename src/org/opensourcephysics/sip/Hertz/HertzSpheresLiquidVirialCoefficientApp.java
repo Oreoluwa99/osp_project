@@ -3,16 +3,16 @@ package org.opensourcephysics.sip.Hertz;
 import java.awt.Color;
 import java.text.DecimalFormat;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.BufferedWriter;
+import org.opensourcephysics.frames.PlotFrame;
+import org.opensourcephysics.frames.Display3DFrame;
 import org.opensourcephysics.controls.AbstractSimulation;
 import org.opensourcephysics.controls.SimulationControl;
 import org.opensourcephysics.display3d.simple3d.ElementEllipsoid;
 import org.opensourcephysics.display3d.simple3d.ElementSphere;
-import org.opensourcephysics.frames.Display3DFrame;
-import org.opensourcephysics.frames.PlotFrame;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression;
 
 // imported for the purpose of creating an array to store the values of the dryVolFrac and totalSums
@@ -202,15 +202,15 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 		 *      [B3, B4, ..., B_{p+2}]
 		 */
 
-		int nPts = rhoList.size();          // number of density data points collected
-		int p = maxPower;                   // number of fitting parameters (powers of ρ)
+		int nPts = rhoList.size();          // number of density data points collected, e.g., 10 data points
+		int p = maxPower;                   // number of fitting parameters,  e.g., 8 (fitting 8 parameters)
 
 		double[] y = new double[nPts];      // target vector: y = (Z - 1)/ρ - B2
-		double[][] x = new double[nPts][p]; // design matrix: columns = ρ^1 ... ρ^p
+		double[][] x = new double[nPts][p]; // design matrix: columns = ρ^1 ... ρ^p (the independent variables)
 
 		for (int i = 0; i < nPts; i++) {
 
-			double rho = rhoList.get(i);     // density at state i
+			double rho = rhoList.get(i);     // density at state i, e.g., ρ = 0.0001
 			y[i] = yMinusB2List.get(i);      // corresponding y-value for regression
 
 			double rpow = rho;               // initialize with ρ^1
@@ -265,9 +265,12 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 				// measured EOS
 				double Z = particles.meanPressure();
 
+				// Compute B2 only ONCE (at first density point)
+				double B2;
+					
 				// B2 depends on alpha (keep per point)
-				double B2 = particles.secondVirialCoefficient(alpha, alpha);
-
+				B2 = particles.secondVirialCoefficient(alpha, alpha);
+				
 				// diagnostics: hard sphere normalisation
 				double sigma   = 2.0 * alpha;
 				double B2_HS   = particles.hardSphereB2(sigma);
@@ -296,7 +299,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 				floryFperVol = particles.meanFreeEnergy() * (particles.N / particles.totalVol);
 				floryFperVolList.add(floryFperVol);
 
-				// store Ideal term (your old form)
+				// store Ideal term 
 				stirlingApprox = (0.75 / Math.PI) * dryVolFrac
 						* Math.log(2.0 * Math.PI * particles.N) / (2.0 * particles.N);
 
@@ -319,25 +322,16 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			// Scan complete: fit virial coefficients
 			// ===========================
 			int maxPower = 8; // fits B3..B7
-			// int nPts = rhoList.size();
 
-			// // ---- FIX #1: do not fit unless you have enough points ----
-			// if (nPts < maxPower) {
-			// 	control.println("ERROR: Not enough points for virial fit. Need at least "
-			// 			+ maxPower + " points, but have " + nPts + ".");
-			// 	writeData();
-			// 	return;
-			// }
+			double[] virial = fitVirialNoIntercept(maxPower); // returns [B3, B4, ..., B_{maxPower+2}]
 
-			double[] virial = fitVirialNoIntercept(maxPower);
-
-			virialCoefficientList.clear();
+			virialCoefficientList.clear(); // clear in case of multiple runs
 			for (int k = 0; k < virial.length; k++) {
 				virialCoefficientList.add(virial[k]);
-			}
+			} // Copies the fitted coefficients from the array into an ArrayList
 
 			control.println("===== Virial fit from yMinusB2 =====");
-			for (int k = 0; k < virial.length; k++) {
+			for (int k = 0; k < virial.length; k++) { // print B3, B4, ..., B_{maxPower+2}
 				int Bindex = k + 3;
 				control.println("B" + Bindex + " = " + virial[k]);
 			}
@@ -345,17 +339,17 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			// ===========================
 			// Build outputs per state i
 			// ===========================
-			// ---- FIX #2: pre-size lists and fill via set(i, ...) to keep indices aligned ----
-			int nStates = rhoList.size();
+			
+			int nStates = rhoList.size(); // e.g., 10 density points
 
-			fExPerVolList.clear();                 // will store f_ex/V from virial
+			fExPerVolList.clear();                   // will store f_ex/V from virial
 			varialPressuresList.clear();             // Z_virial
 			floryRehnerPressuresListEdited.clear();  // Z_FR = Z_total - Z_virial
 			calculatedPressures.clear();             // reconstructed Z_total = Z_virial + Z_FR
 			totalSums.clear();                       // F_total/V
 			chemicalPotList.clear();                 // mu/kT
 
-			for (int i = 0; i < nStates; i++) {
+			for (int i = 0; i < nStates; i++) { // initialize with zeros (will be overwritten for i=1..nStates-2)
 				fExPerVolList.add(0.0);
 				varialPressuresList.add(0.0);
 				floryRehnerPressuresListEdited.add(0.0);
@@ -365,19 +359,21 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			}
 
 			for (int i = 1; i < nStates - 1; i++) {
+				// // Skip first and last points for chemical potential calculation (central difference)
 
-				double rho = rhoList.get(i);
-				double B2  = secondVirialCoefficientList.get(i);
+				double rho = rhoList.get(i); // density at state i
+				double B2  = secondVirialCoefficientList.get(i); // B2 at state i 
 
 				// Z_virial = 1 + B2*rho + B3*rho^2 + B4*rho^3 + ...
 				double Zvir = 1.0 + B2 * rho;
-				for (int k = 0; k < virial.length; k++) {
-					int n = k + 3; // Bn multiplies rho^(n-1)
+				for (int k = 0; k < virial.length; k++) { // Loop over B3, B4, ..., B_{maxPower+2}
+					int n = k + 3; // n = 3 for B3, n=4 for B4, etc.
 					Zvir += virial[k] * Math.pow(rho, n - 1);
 				}
-				varialPressuresList.set(i, Zvir);
+				varialPressuresList.set(i, Zvir); // Replace the 0.0 at index i
 
-				// f_ex/V = B2*rho^2 + sum_{n>=3} [ Bn * rho^n / (n-1) ]
+				// Calculate F_ex/V (Excess Free Energy) from virial expansion:
+				// f_ex/V = B₂ρ² + B₃ρ³/2 + B₄ρ⁴/3 + ...
 				double fEx = B2 * rho * rho;
 				for (int k = 0; k < virial.length; k++) {
 					int n = k + 3;
@@ -386,12 +382,12 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 				fExPerVolList.set(i, fEx);
 
 				// total free energy per volume
-				double fTotal = floryFperVolList.get(i) + idealFreeEnergyList.get(i) + fEx;
+				double fTotal = floryFperVolList.get(i) + idealFreeEnergyList.get(i) + fEx; // F_total/V = F_FR/V + F_ideal/V + F_ex/V
 				totalSums.set(i, fTotal);
 
 				// FR contribution to Z (in Z-units)
-				double Ztotal = meanPressures.get(i);
-				double Zfr = Ztotal - Zvir;
+				double Ztotal = meanPressures.get(i); // Measured from simulation
+				double Zfr = Ztotal - Zvir; // Flory-Rehner contribution
 
 				floryRehnerPressuresListEdited.set(i, Zfr);
 				calculatedPressures.set(i, Zvir + Zfr); // should ~ Ztotal (fit error)
@@ -432,14 +428,14 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	 */
 	public void reset() {
 		enableStepsPerDisplay(true);
-		control.setValue("DryVolFrac increment", 0.0002);
-		control.setValue("DryVolFrac Max", 0.002);
+		control.setValue("DryVolFrac increment", 0.0001);
+		control.setValue("DryVolFrac Max", 0.0022);
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
 		control.setValue("N", 108); // number of particles
 		//control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
         control.setValue("Dry radius [nm]", 50);
-        control.setValue("x-link fraction", 0.00003); // 0.001
+        control.setValue("x-link fraction", 0.00005); // 0.001
         // control.setValue("Dry volume fraction", 0.01);
         control.setValue("Young's calibration", 1.0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
@@ -566,7 +562,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	    } 
 
 		try {
-			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquidVirialCoefficient" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquidVirialCoefficient5e-5" + particles.fileExtension + ".txt");
 		
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -675,7 +671,73 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+
+		// Write virial coefficients to a separate file
+		try {
+			File virialFile = new File("data/APS_2026/Liquid_Phase/VirialCoefficientsXlink4e-5" + particles.fileExtension + ".txt");
+			
+			// Create parent directory if it doesn't exist
+			File virialDir = virialFile.getParentFile();
+			if (virialDir != null && !virialDir.exists()) {
+				virialDir.mkdirs();
+			}
+			
+			if (!virialFile.exists()) {
+				virialFile.createNewFile();
+			}
+
+			FileWriter fw2 = new FileWriter(virialFile.getAbsoluteFile());
+			BufferedWriter bw2 = new BufferedWriter(fw2);
+
+			// Write header with system parameters
+			bw2.write("===== Virial Coefficients for Hertzian Microgels =====");
+			bw2.newLine();
+			bw2.write("x-link fraction: " + particles.xLinkFrac);
+			bw2.newLine();
+			bw2.write("Young's calibration: " + particles.Young);
+			bw2.newLine();
+			bw2.write("chi: " + particles.chi);
+			bw2.newLine();
+			bw2.write("Dry radius [nm]: " + particles.dryR);
+			bw2.newLine();
+			bw2.write("Number of density points: " + rhoList.size());
+			bw2.newLine();
+			bw2.write("Density range: rho_min = " + rhoList.get(0) + ", rho_max = " + rhoList.get(rhoList.size()-1));
+			bw2.newLine();
+			bw2.newLine();
+
+			// Write B2 values at each density point
+			bw2.write("===== B2 at Each Density Point =====");
+			bw2.newLine();
+			bw2.write("rho, B2, B2_HS, B2*");
+			bw2.newLine();
+			for (int i = 0; i < rhoList.size(); i++) {
+				bw2.write(rhoList.get(i) + ", " + 
+						secondVirialCoefficientList.get(i) + ", " + 
+						hardSphereB2List.get(i) + ", " + 
+						reducedB2List.get(i));
+				bw2.newLine();
+			}
+			bw2.newLine();
+
+			// Write higher-order virial coefficients (B3, B4, ..., B10)
+			bw2.write("===== Higher-Order Virial Coefficients (from OLS fit) =====");
+			bw2.newLine();
+			bw2.write("Coefficient, Value");
+			bw2.newLine();
+			for (int k = 0; k < virialCoefficientList.size(); k++) {
+				int Bindex = k + 3;  // B3, B4, B5, ..., B10
+				bw2.write("B" + Bindex + ", " + virialCoefficientList.get(k));
+				bw2.newLine();
+			}
+
+			bw2.close();
+			System.out.println("Virial coefficients written to: " + virialFile.getAbsolutePath());
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+				
         // write radial distribution function, static structure factor to files in data subdirectory
 	    if (structure){
 			rdf.writeRDF();

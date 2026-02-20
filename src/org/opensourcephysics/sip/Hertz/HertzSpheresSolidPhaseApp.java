@@ -56,10 +56,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase();
 
 	/* For the interpenetration algorithm */
-	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
+	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // For the optimized interpenetration algorithm
 
 	/* For the facet algorithm */
-	//HertzSpheresNonLocalFacetFreeEnergies particles = new HertzSpheresNonLocalFacetFreeEnergies(); // For the facet algorithm with free energies
+	HertzSpheresNonLocalFacetFreeEnergies particles = new HertzSpheresNonLocalFacetFreeEnergies(); // For the facet algorithm with free energies
 	
 	PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
 	PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
@@ -520,8 +520,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.0011);
-		control.setValue("DryVolFrac Max", 0.0042);
+		control.setValue("DryVolFracStart", 0.0007); //started at 0.0011 initially
+		control.setValue("DryVolFrac Max", 0.0035); // ended at 0.0042 initially
 		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
@@ -540,7 +540,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
-		control.setValue("File extension", "1");
+		control.setValue("File extension", "2");
 		control.setValue("Calculate structure", false); // true means calculate g(r) and S(k)
 		control.setAdjustableValue("Visualization on", true);
 	}
@@ -641,7 +641,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Solid_Phase/Penetration/Free_Energy_Penetration" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
