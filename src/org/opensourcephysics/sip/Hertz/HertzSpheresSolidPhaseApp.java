@@ -140,6 +140,10 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	List<Double> lindemannParameterList = new ArrayList<>();
 	List<Double> volumefractionList = new ArrayList<>();
 	List<Double> softnessList = new ArrayList<>();
+	List<Double> totalPressureList = new ArrayList<>();
+	List<Double> einsteinPressureList = new ArrayList<>();
+	List<Double> fPairPerVolList = new ArrayList<>();
+	List<Double> virialPlusThermoList = new ArrayList<>();
 
 	DecimalFormat decimalFormat = new DecimalFormat("#.#######"); // to round my dryVolFrac values to 3 dp
 
@@ -290,7 +294,9 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 					/* Compute the spring constant at lambda = 1*/
 					springConstant = 3/(2*particles.meanSquareDisplacement()); // the springConstant
-					
+					control.println("springConstant: "+springConstant);
+					control.println("meanSquareDisplacement at lambda=1: " + particles.meanSquareDisplacement());
+
 					control.println("springConstant: "+springConstant);
 
 					particles.springConstant = springConstant;
@@ -301,6 +307,14 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					floryFEperVolList.add(floryFEperVol); // update the list
 
 					control.println("floryFEperVol: "+floryFEperVol);
+
+					control.println("mixFRSR = " + particles.mixFRSR);
+					control.println("elasticFRSR = " + particles.elasticFRSR);
+					control.println("meanFR before subtraction = " + (particles.freeEnergyAccumulator/particles.N/particles.numberOfConfigurations + particles.totalFRSR));
+
+					control.println("reservoirSR = " + particles.reservoirSR);
+    				control.println("totalFRSR per particle = " + (particles.mixFRSR + particles.elasticFRSR));
+    				control.println("mean FR per particle before subtraction = " + (particles.freeEnergyAccumulator/particles.N/particles.numberOfConfigurations + particles.mixFRSR + particles.elasticFRSR));
 
 					// the reference free energy (the free energy of the ideal Einstein Crystal)
 					referenceFR = -3*(particles.N-1)/2.0*Math.log(Math.PI/particles.springConstant)-Math.log(particles.N)/2.0-Math.log(particles.totalVol);
@@ -325,7 +339,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 						newHertzianPotential = particles.B*Math.pow((1-nnDistance/(2*particles.meanRadius())), 2.5);
 					}
 
-					control.println("newHertzianPotential: "+newHertzianPotential);
+					// control.println("newHertzianPotential: "+newHertzianPotential);
 
 					newHertzianPotentialList.add(newHertzianPotential);
 					
@@ -365,6 +379,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					}
 
 					else{
+						control.println("--- Gauss-Legendre point " + pointIteration + " ---");
+						control.println("lambda = " + lambda);
+						control.println("meanPairEnergy = " + particles.meanPairEnergy());
+						control.println("meanSpringEnergy = " + particles.meanSpringEnergy());
+						control.println("meanSquareDisplacement = " + particles.meanSquareDisplacement());
+						control.println("meanPairEnergy - meanSpringEnergy = " + (particles.meanPairEnergy() - particles.meanSpringEnergy()));
+				
 						deltaFPerVol = deltaFAccumulator*(particles.N/particles.totalVol); //ΔF/V
 						
 						fPairPerVol = deltaFPerVol; // the pairEnergy of Interaction
@@ -384,6 +405,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 						pairFreeEnergyList.add(fPairPerVol);
 						totalSumOfEnergiesList.add(totalFreeEnergy);
 						volumefractionList.add(particles.meanVolFrac()); // the volume fraction list
+						control.println("phi: " + particles.meanVolFrac());
 						softnessList.add(1.0/particles.B); // the softness list
 						control.println("softness: " + (1.0/particles.B));
 
@@ -420,9 +442,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 				/* Initialize the lists */
 				floryRehnerPressuresListEdited.add(0, 0.0);
 				pairPressuresListEdited.add(0, 0.0);
-				calculatedPressures.add(0,0.0);
-				chemicalPotentialList.add(0,0.0);
-				
+				calculatedPressures.add(0, 0.0);
+				chemicalPotentialList.add(0, 0.0);
+				totalPressureList.add(0, 0.0);  
+				einsteinPressureList.add(0, 0.0);   
+				fPairPerVolList.add(0, 0.0);   
+				virialPlusThermoList.add(0, 0.0); 
+								
 				// Iterate through dry volume fractions, excluding the first and last elements
 				for (i = 1; i < dryVolFracs.size() - 1; i++) {
 					// Retrieve the current, previous, and next dry volume fractions
@@ -486,6 +512,23 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 					control.println("floryContribution = " + floryPContribution);
 
+					// correct pressure from total free energy derivative
+					double dFtotal_dPhi = (totalSumOfEnergiesList.get(i+1) - totalSumOfEnergiesList.get(i-1)) 
+										/ (2.0 * particles.dphi);
+					double totalPressureContribution = (dFtotal_dPhi * currentDryVolFrac - totalSumOfEnergiesList.get(i)) 
+													* totalVolList.get(i) / particles.N;
+					totalPressureList.add(totalPressureContribution); // store it
+
+					double dFref_dPhi = (referenceFRPerVolList.get(i+1) - referenceFRPerVolList.get(i-1))
+                  / (2.0 * particles.dphi);
+					double einsteinPressure = (dFref_dPhi * currentDryVolFrac - referenceFRPerVolList.get(i))
+								* totalVolList.get(i) / particles.N;
+					double virialPlusThermo = meanPressures.get(i) + totalPressureContribution;
+
+					einsteinPressureList.add(einsteinPressure);
+					fPairPerVolList.add(pairFreeEnergyList.get(i));
+					virialPlusThermoList.add(virialPlusThermo);
+
 					/* Update the lists accordingly */
 					floryRehnerPressuresListEdited.add(floryPContribution);
 					pairPressuresListEdited.add(pairPContribution); // the F0 (eq. 48 from Vegas et. al.) already incldues the ideal gas free energy
@@ -520,13 +563,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.0007); //started at 0.0011 initially
-		control.setValue("DryVolFrac Max", 0.0035); // ended at 0.0042 initially
-		control.setValue("DryVolFrac increment", 0.0001);
+		control.setValue("DryVolFracStart", 0.0024); 
+		control.setValue("DryVolFrac Max", 0.0034); 
+		control.setValue("DryVolFrac increment", 0.00001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
 		control.setValue("N", 108); // number of particles
-		control.setValue("x-link fraction", 0.00003);
+		control.setValue("x-link fraction", 0.00004);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
 		control.setValue("Young's calibration", 1.0); // 10-1000
@@ -540,7 +583,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
-		control.setValue("File extension", "2");
+		control.setValue("File extension", "1");
 		control.setValue("Calculate structure", false); // true means calculate g(r) and S(k)
 		control.setAdjustableValue("Visualization on", true);
 	}
@@ -641,7 +684,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet_xlink_4e-5" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
@@ -656,6 +699,12 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			BufferedWriter bw1 = new BufferedWriter(fw1);
 
 			// System params header
+			bw1.write("Starting dry volume fraction: " + dryVolFracStart);
+			bw1.newLine();
+			bw1.write("Maximum dry volume fraction: " + dryVolFracMax);
+			bw1.newLine();
+			bw1.write("DryVolFrac increment: " + particles.dphi);
+			bw1.newLine();
 			bw1.write("Number of particles: " + particles.N);
 			bw1.newLine();
 			bw1.write("Initial configuration: " + particles.initConfig);
@@ -689,10 +738,8 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 			bw1.write("g(r) bin width: " + particles.grBinWidth);
 			bw1.newLine();
 
-			// CSV Header
-			bw1.write("phi0,	phi, 	mu/KT,		(PV/NkT)_total,		1+(PV/NkT)_virial,		 1+(PV/NkT)_pair/calculated,		(PV/NkT)_FR,      <F_total>/V,      EntropySolid,		Freference/V,           <F_FR>/V,     <alpha>,      zeta, 		newHertzianPotential, 		SpringConstant, 		lindemannParameter, 		kT/E");
-			bw1.newLine();
-
+			bw1.write("phi0, phi, mu/kT, (PV/NkT)_from_dF_FR+dF_pair, (PV/NkT)_from_dF_total, (PV/NkT)_virial_measured, (PV/NkT)_virial+dF_total, (PV/NkT)_einstein, (PV/NkT)_pair_contribution, (PV/NkT)_FR_contribution, <F_total>/V, <F_pair>/V, EntropySolid, <F_reference>/V, <F_FR>/V, <alpha>, zeta, u_Hertz_nn, SpringConstant, LindemannParameter, kT/E");
+			bw1.newLine();			
 			// Data rows (with NaN guard for safety)
 			for (int i = 1; i < dryVolFracs.size() - 1; i++) {
 				if (i >= chemicalPotentialList.size() || Double.isNaN(chemicalPotentialList.get(i))) {
@@ -700,15 +747,27 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 					continue;
 				}
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) + ", " + chemicalPotentialList.get(i) + ", " + calculatedPressures.get(i) + 
-						", " + meanPressures.get(i) + ", " + pairPressuresListEdited.get(i) + 
-						", " + floryRehnerPressuresListEdited.get(i) + ", " + totalSumOfEnergiesList.get(i) + 
-						", " + (uPairPerVolList.get(i) - totalSumOfEnergiesList.get(i) + 1.50) + 
-						", " + referenceFRPerVolList.get(i) + ", " + floryFEperVolList.get(i) + 
-						", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + 
-						", " + newHertzianPotentialList.get(i) + ", " + springConstantList.get(i) + 
-						", " + lindemannParameterList.get(i) +
-						", " + softnessList.get(i));
+				bw1.write(roundedDryVolFrac + ", " + 
+					volumefractionList.get(i) + ", " + 
+					chemicalPotentialList.get(i) + ", " + 
+					calculatedPressures.get(i) + ", " +
+					totalPressureList.get(i) + ", " +
+					meanPressures.get(i) + ", " +
+					virialPlusThermoList.get(i) + ", " +
+					einsteinPressureList.get(i) + ", " +
+					pairPressuresListEdited.get(i) + ", " + 
+					floryRehnerPressuresListEdited.get(i) + ", " + 
+					totalSumOfEnergiesList.get(i) + ", " +
+					fPairPerVolList.get(i) + ", " +
+					(uPairPerVolList.get(i) - totalSumOfEnergiesList.get(i) + 1.50) + ", " + 
+					referenceFRPerVolList.get(i) + ", " + 
+					floryFEperVolList.get(i) + ", " + 
+					swellingRatioList.get(i) + ", " + 
+					reservoirVolFracList.get(i) + ", " + 
+					newHertzianPotentialList.get(i) + ", " + 
+					springConstantList.get(i) + ", " + 
+					lindemannParameterList.get(i) + ", " + 
+					softnessList.get(i));
 				bw1.newLine();
 			}
 			bw1.close();

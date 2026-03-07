@@ -44,8 +44,8 @@ import java.util.ArrayList;
 
 public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
-	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
+	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
+	HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
 	//HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors(); // with nearest neighbor interactions only for facet model
 	//HertzSpheresNonLocalFacetNearestNeighbors_V2 particles = new HertzSpheresNonLocalFacetNearestNeighbors_V2(); // for Hertz spheres without facet interactions
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); // both interpenetration and facet algorithms
@@ -259,15 +259,15 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 		control.setValue("Initial configuration", "FCC");
 		control.setValue("N", 108); // number of particles
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 3.4e-5);
+		control.setValue("x-link fraction", 3.35E-5);
 		control.setValue("Young's calibration", 1); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
 		control.setValue("Radius change tolerance", 0.05); // initially set to 0.05
-		control.setValue("Delay", 10000); // steps after which statistics collection starts
+		control.setValue("Delay", 50000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
-		control.setValue("Stop", 100000); // steps after which statistics collection stops
+		control.setValue("Stop", 500000); // steps after which statistics collection stops
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
 		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
@@ -374,7 +374,7 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 		try {
 			//File outputFile = new File("data/Lindemann_Parameter/StabilityData"+particles.fileExtension+".txt");
 			//File outputFile = new File("data/APS_2026/Lindemann_vs_Phi/Lindemann_Ratio_Facet_nn"+particles.fileExtension+".txt");
-			File outputFile = new File("data/ssf_and_rdf_data/x_link_3.4E-5/facet_data_without_nn"+particles.fileExtension+".txt");
+			File outputFile = new File("data/ssf_and_rdf_data/Penetration/penetration_data_new"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -382,8 +382,17 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 
 			FileWriter fw1 = new FileWriter(outputFile.getAbsoluteFile());
 			BufferedWriter bw1 = new BufferedWriter(fw1);
-
+			
 			// write system parameters to the file
+			// minimum dry volume fraction, maximum dry volume fraction, dry volume fraction increment, initial configuration, dry microgel radius, box length, number of monomers, number of chains, Flory interaction parameter (chi), Young's calibration factor, x-link fraction, x-link fraction increment, MC steps, equilibration steps, snapshot interval, displacement tolerance, particle radius change tolerance, particle radius bin width, g(r) bin width
+			bw1.write("#Minimum dry volume fraction: " + dryVolFracStart);
+			bw1.newLine();	
+			bw1.write("#Maximum dry volume fraction: " + dryVolFracMax);
+			bw1.newLine();
+			bw1.write("#Dry volume fraction increment: " + particles.dphi);
+			bw1.newLine();
+			bw1.write("#Initial configuration: " + particles.initConfig);
+			bw1.newLine();
 			bw1.write("#Number of particles: " + particles.N);
 			bw1.newLine();
 			bw1.write("#Dry volume fraction increment: " + particles.dphi);

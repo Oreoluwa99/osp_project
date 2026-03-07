@@ -1,0 +1,11 @@
+x_link: 3e-5:
+
+	Overlapping phi range: 0.5536 to 0.6639
+
+	Number of mu intersections found: 1
+
+	=== COEXISTENCE POINT (mu) ===
+	phi_coexistence = 0.579129
+	mu_coexistence  = 1.913964
+	P_liq at coex   = 6.792558
+	P_sol at coex   = 1.549916

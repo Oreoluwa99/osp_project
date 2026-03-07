@@ -148,7 +148,7 @@ public class HertzSpheresNonLocalFacetFreeEnergies {
       pairEnergyAccumulator = 0; //for the lamba = 1 system
       freeEnergyAccumulator = 0;
       virialAccumulator = 0;
-      //springEnergyAccumulator = 0;
+      springEnergyAccumulator = 0;
       boltzmannFactorAccumulator = 0;
       numberOfConfigurations = 0;
       squaredDisplacementAccumulator = 0;
@@ -708,10 +708,10 @@ public class HertzSpheresNonLocalFacetFreeEnergies {
       final double resSR2  = resSR * resSR;
       final double resSR3  = resSR2 * resSR;
       final double invRes3 = 1.0 / resSR3;
-      final double mixFRSR_local =
-      nMon * ((resSR3 - 1.0) * Math.log(1.0 - invRes3) + chi * (1.0 - invRes3));
-      final double elasticFRSR_local = 1.5 * nChains * (resSR2 - Math.log(resSR) - 1.0);
-      final double totalFRSR_local = mixFRSR_local + elasticFRSR_local;
+      double mixFRSR = nMon * ((resSR3 - 1.0) * Math.log(1.0 - invRes3) + chi * (1.0 - invRes3));
+      double elasticFRSR_local = 1.5 * nChains * (resSR2 - Math.log(resSR) - 1.0);
+      double totalFRSR = mixFRSR + elasticFRSR_local;
+      final double totalFRSR_local = totalFRSR;
 
       double virialSum;
 
