@@ -8,6 +8,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.BufferedWriter;
 import org.opensourcephysics.frames.PlotFrame;
+import org.opensourcephysics.sip.Hertz.HertzSpheresNonLocalFacet;
 import org.opensourcephysics.frames.Display3DFrame;
 import org.opensourcephysics.controls.AbstractSimulation;
 import org.opensourcephysics.controls.SimulationControl;
@@ -31,7 +32,8 @@ import java.util.ArrayList;
 
 public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
     public enum WriteModes{WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-    HertzSpheresLiquidDensity particles = new HertzSpheresLiquidDensity();
+    //HertzSpheresLiquidDensity particles = new HertzSpheresLiquidDensity();
+	HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet();
     PlotFrame energyData = new PlotFrame("MC steps", "<E_pair>/N", "Mean pair energy per particle");
     PlotFrame pressureData = new PlotFrame("MC steps", "PV/NkT", "Mean pressure");
     PlotFrame sizeData = new PlotFrame("MC steps", "alpha", "Mean swelling ratio");
@@ -43,34 +45,28 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
     boolean structure;
     RDF rdf;
     SSF ssf;
-	double lambda, dlambda;
+	double lambda=1;
 	double freeEnergyTotal, pairEnergyTotal;
 	double dryVolFrac, dryVolFracStart, dryVolFracMax;
 	double totalSum;
 	boolean incrementDryVolFrac = true;
 	boolean flag = false;
-	boolean resetLambda = true;
 	double totalVol;
 	double floryFperVol, idealFreeEnergy;
-	boolean isFirstIteration;
 	double pairEnergy = 0;
-	double n, pairPressure, calculatedPressure;
-	double initialfloryFperVol, initialpairEperVol;
-	double stirlingApprox, pairEperVol, totalFreeEnergies;
+	double n, calculatedPressure;
+	double stirlingApprox;
 	boolean firstResidualPart;
-	double floryPressure, deltaFpairDividedByDeltaPhi, dFRFE_dPhi, dFPair_dPhi;
-	double freeEnergyPressure, floryPContribution, pairPressureContribution;
+	double freeEnergyPressure;
 	double pairPContribution;
-	double initialFreeEnergy, latestFreeEnergy;
-	double latestFREperVol, latestPairEperVol;
-	double currentDryVolFrac, previousDryVolFrac, nextDryVolFrac;
-	int currentIndex, previousIndex, nextIndex;
-	double currentPairEnergy, previousPairEnergy, nextPairEnergy;
-	double currentFRFreeEnergy, previousFRFreeEnergy, nextFRFreeEnergy;
+	double initialFreeEnergy;
+	double latestFREperVol;
+	double currentDryVolFrac;
+	int currentIndex;
 	double chemicalPot;
-	double latestFE, initialFE, chemicalPotential;
+	double latestFE;
 	double uPairPerVol;
-	double density, nnDistance, newHertzianPotential;
+	double density;
 
 	List<Double> dryVolFracs = new ArrayList<>();
     List<Double> totalSums = new ArrayList<>();
@@ -144,7 +140,6 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			particles.dryVolFrac = dryVolFrac;
 			incrementDryVolFrac = false;
 		}
-
 		
 		particles.initialize(configuration);
 
@@ -305,7 +300,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 				stirlingApprox = (0.75 / Math.PI) * dryVolFrac
 						* Math.log(2.0 * Math.PI * particles.N) / (2.0 * particles.N);
 
-				idealFreeEnergy = (0.75 / Math.PI) * dryVolFrac * (Math.log(rho) - 1.0) + stirlingApprox;
+				double idealFreeEnergy = (0.75 / Math.PI) * dryVolFrac * (Math.log(rho) - 1.0) + stirlingApprox;
 				idealFreeEnergyList.add(idealFreeEnergy);
 
 				// uPair/V (used this in QMelting)
@@ -323,7 +318,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			// ===========================
 			// Scan complete: fit virial coefficients
 			// ===========================
-			int maxPower = 7; // fits B3..B7
+			int maxPower = 7; // fits B3..B9
 
 			double[] virial = fitVirialNoIntercept(maxPower); // returns [B3, B4, ..., B_{maxPower+2}]
 
@@ -361,7 +356,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			}
 
 			for (int i = 1; i < nStates - 1; i++) {
-				// // Skip first and last points for chemical potential calculation (central difference)
+				// Skip first and last points for chemical potential calculation (central difference)
 
 				double rho = rhoList.get(i); // density at state i
 				double B2  = secondVirialCoefficientList.get(i); // B2 at state i 
@@ -430,8 +425,8 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	 */
 	public void reset() {
 		enableStepsPerDisplay(true);
-		control.setValue("DryVolFrac increment", 0.0002);
-		control.setValue("DryVolFrac Max", 0.0025);
+		control.setValue("DryVolFrac increment", 0.0001);    // 0.0002
+		control.setValue("DryVolFrac Max", 0.0025);     // 0.0025
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
 		control.setValue("N", 108); // number of particles
@@ -501,16 +496,6 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
             bw.newLine();
             bw.write("x-link fraction: " + particles.xLinkFrac);
             bw.newLine();
-            bw.write("Reservoir swelling ratio: " + particles.reservoirSR);
-            bw.newLine();
-			bw.write("Mean swelling ratio: " + particles.meanRadius());
-			bw.newLine();
-            bw.write("Dry volume fraction: " + particles.dryVolFrac);
-            bw.newLine();
-			bw.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
-			bw.newLine();
-			bw.write("Actual volume fraction: " + particles.volFrac);
-			bw.newLine();
 			bw.write("MC steps: " + particles.steps);
 			bw.newLine();
 			bw.write("Equilibration steps: " + particles.delay);
@@ -564,7 +549,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	    } 
 
 		try {
-			File outputFile = new File("data/APS_2026/Liquid_Phase/HertzSpheresLiquidVirialCoefficient3e-5" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Liquid_Phase/Facet/FacetLiquidVirialCoefficient3e-5" + particles.fileExtension + ".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -598,16 +583,6 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			bw1.newLine();
 			bw1.write("x-link fraction: " + particles.xLinkFrac);
 			bw1.newLine();
-			bw1.write("Reservoir swelling ratio: " + particles.reservoirSR);
-			bw1.newLine();
-			bw1.write("Mean swelling ratio: " + particles.meanRadius());
-			bw1.newLine();
-			bw1.write("Dry volume fraction: " + particles.dryVolFrac);
-			bw1.newLine();
-			bw1.write("Reservoir volume fraction: " + particles.reservoirVolFrac);
-			bw1.newLine();
-			bw1.write("Actual volume fraction: " + particles.volFrac);
-			bw1.newLine();
 			bw1.write("MC steps: " + particles.steps);
 			bw1.newLine();
 			bw1.write("Equilibration steps: " + particles.delay);
@@ -626,7 +601,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			// bw1.newLine();	
 			
 			// Column headers - simplified pressure columns
-			bw1.write("phi0, phi, rho, mu/kT, Z_measured, Z_virial, <F_total>/V, QMelting, <F_id>/V, <F_ex>/V, <F_FR>/V, <alpha>, Zeta, B2_rho, B2_phi0, B2_HS, B2*");
+			bw1.write("phi0, phi, rho, mu/kT, Z_measured, Z_virial_Fit, <F_total>/V, QMelting, <F_id>/V, <F_ex>/V, <F_FR>/V, <alpha>, Zeta, B2_rho, B2_phi0, B2_HS, B2*");
 			bw1.newLine();
 
 			double factor = 0.75 / Math.PI; // Conversion factor

@@ -524,7 +524,8 @@
             // Calculate total change in FR energy for the system
             dFlory = dFloryForI + dFloryForJ;
    
-            de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
+            // de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
+            de = (pairEnergySum-energy[i])+(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
 
             if (Math.exp(-de) < Math.random()) { // Metropolis algorithm
                x[i] -= dxtrial; //reject move
@@ -667,6 +668,64 @@
       // mean microgel volume fraction 
       public double meanVolFrac() {
          return volFracAccumulator/numberOfConfigurations; // Total volume fraction over number of configurations
+      }
+
+      /**
+       * Compute hard-sphere second virial coefficient for comparison.
+       * For hard spheres: B2 = (2π/3) * σ^3
+       */
+      public double hardSphereB2(double sigma) {
+         return (2.0 * Math.PI / 3.0) * Math.pow(sigma, 3.0);
+      }
+
+      public double secondVirialCoefficient(double alpha_i, double alpha_j) {
+         double sigma = alpha_i + alpha_j;  // contact distance (sum of radii)
+         
+         // Hertz amplitude
+         double hertz = Young * nChains * Math.pow(sigma, 2.0) * Math.sqrt(alpha_i * alpha_j) 
+                        / (Math.pow(alpha_i, 3.0) + Math.pow(alpha_j, 3.0));
+         
+         // 10-point Gauss-Legendre nodes
+         double[] xi = { 
+            -0.9739065285171717, -0.8650633666889845, -0.6794095682990244, 
+            -0.4333953941292472, -0.1488743389816312,  0.1488743389816312,
+               0.4333953941292472,  0.6794095682990244,  0.8650633666889845,
+               0.9739065285171717 
+         };
+         
+         // 10-point Gauss-Legendre weights
+         double[] wi = { 
+            0.0666713443086881, 0.1494513491505806, 0.2190863625159820,
+            0.2692667193099963, 0.2955242247147529, 0.2955242247147529,
+            0.2692667193099963, 0.2190863625159820, 0.1494513491505806,
+            0.0666713443086881 
+         };
+         
+         double sum = 0.0;
+         
+         // Gaussian quadrature over [-1, 1] transformed to [0, sigma]
+         // Transformation: r = (sigma/2)*(x + 1) where x in [-1,1]
+         for (int k = 0; k < 10; k++) {  // use 'k' to avoid conflict with parameter names
+            double x = xi[k];
+            double r = (sigma / 2.0) * (x + 1.0);  // transform from [-1,1] to [0,sigma]
+            
+            // Hertz potential at distance r
+            double vHertz = hertz * Math.pow(1.0 - r/sigma, 2.5);
+            
+            // Integrand: r^2 * [1 - exp(-v(r))]
+            double f = r * r * (1.0 - Math.exp(-vHertz));
+            
+            // Accumulate weighted sum
+            sum += wi[k] * f;
+         }
+         
+         // Multiply by Jacobian (sigma/2) from change of variables
+         double integral = (sigma / 2.0) * sum;
+         
+         // Multiply by 2π to get B2
+         double B2 = 2.0 * Math.PI * integral;
+         
+         return B2;
       }
 
       // mean pair energy per particle [kT units]
