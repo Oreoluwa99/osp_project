@@ -394,9 +394,11 @@ public class HertzSpheresLiquidDensity {
 
 		            virialSum += xij*fx + yij*fy + zij*fz;
 	            }
+               else {
+                  pairEnergy[i][j] = 0;
+               }
             }
          }
-
 
          // Flory-Rehner single-particle free energy (associated with swelling)
 	      mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));

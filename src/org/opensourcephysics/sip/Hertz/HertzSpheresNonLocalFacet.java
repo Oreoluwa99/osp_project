@@ -615,6 +615,8 @@
                      fz = fOverR*zij; // pair force in z-direction
                      virialSum += xij*fx + yij*fy + zij*fz;
                   }
+                  else{
+                     pairEnergy[i][j] = 0;
                }
             }
 
@@ -643,23 +645,23 @@
 
          totalPairEnergy *= 0.5; // correct for double counting pairs
 
-      if (steps > delay){
-            if ((steps-delay)%snapshotInterval==0){ // include configurations only after even number of intervals
-               numberOfConfigurations++;
-               totalVirial *= 0.5; // correct for double counting pairs
-               totalEnergy = totalPairEnergy + totalFreeEnergy;
-               pairEnergyAccumulator += totalPairEnergy; // when lambda = 1
-               energyAccumulator += totalEnergy; // running totals
-               freeEnergyAccumulator += totalFreeEnergy;
-               // boltzmannFactorAccumulator += boltzmannFactor;
-               virialAccumulator += totalVirial;
-               squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
-               springEnergyAccumulator += springEnergySum; // accumulates all the spring energies        
-               // Accumulate the volume fraction
-               volFracAccumulator += calculateVolumeFraction();            }
-            }
+         if (steps > delay){
+               if ((steps-delay)%snapshotInterval==0){ // include configurations only after even number of intervals
+                  numberOfConfigurations++;
+                  totalVirial *= 0.5; // correct for double counting pairs
+                  totalEnergy = totalPairEnergy + totalFreeEnergy;
+                  pairEnergyAccumulator += totalPairEnergy; // when lambda = 1
+                  energyAccumulator += totalEnergy; // running totals
+                  freeEnergyAccumulator += totalFreeEnergy;
+                  // boltzmannFactorAccumulator += boltzmannFactor;
+                  virialAccumulator += totalVirial;
+                  squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
+                  springEnergyAccumulator += springEnergySum; // accumulates all the spring energies        
+                  // Accumulate the volume fraction
+                  volFracAccumulator += calculateVolumeFraction();            }
+               }
+         }
       }
-
       // mean energy per particle [kT units]
       public double meanEnergy() {
          return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N

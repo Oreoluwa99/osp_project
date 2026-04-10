@@ -8,7 +8,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.BufferedWriter;
 import org.opensourcephysics.frames.PlotFrame;
-import org.opensourcephysics.sip.Hertz.HertzSpheresNonLocalFacet;
 import org.opensourcephysics.frames.Display3DFrame;
 import org.opensourcephysics.controls.AbstractSimulation;
 import org.opensourcephysics.controls.SimulationControl;
@@ -67,6 +66,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	double latestFE;
 	double uPairPerVol;
 	double density;
+	int maxPower;
 
 	List<Double> dryVolFracs = new ArrayList<>();
     List<Double> totalSums = new ArrayList<>();
@@ -318,7 +318,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			// ===========================
 			// Scan complete: fit virial coefficients
 			// ===========================
-			int maxPower = 7; // fits B3..B9
+			maxPower = control.getInt("Max virial power");
 
 			double[] virial = fitVirialNoIntercept(maxPower); // returns [B3, B4, ..., B_{maxPower+2}]
 
@@ -426,7 +426,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 		control.setValue("DryVolFrac increment", 0.0001);    // 0.0002
-		control.setValue("DryVolFrac Max", 0.0025);     // 0.0025
+		control.setValue("DryVolFrac Max", 0.003);     // 0.0025
 		control.setValue("Initial configuration", "FCC");
 		//control.setValue("Initial configuration", "random-FCC");
 		control.setValue("N", 108); // number of particles
@@ -439,6 +439,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
         control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
 		control.setValue("Radius change tolerance", 0.05);
+		control.setValue("Max virial power", 7); // number of virial coefficients to fit (B3 to B_{maxPower+2})
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples 
 		control.setValue("Stop", 100000); // steps after which statistics collection stops
@@ -549,8 +550,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 	    } 
 
 		try {
-			File outputFile = new File("data/APS_2026/Liquid_Phase/Facet/FacetLiquidVirialCoefficient3e-5" + particles.fileExtension + ".txt");
-
+			File outputFile = new File("data/APS_2026/Liquid_Phase/Facet/FacetLiquid_maxPower" + maxPower + "_" + particles.fileExtension + ".txt");
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
 			}
@@ -559,7 +559,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			BufferedWriter bw1 = new BufferedWriter(fw1);
 
 			// write system parameters to the file in addittion to dryVolFracs and totalFree energies
-			bw1.write("This fits only B3, B4, B5, B6, B7, B8, B9 into the virial expansion since maxPower is set to 7. The fitted B3, B4, B5, B6, B7, B8, B9 values are in the file named VirialCoefficientsXlink3e-57" + particles.fileExtension + ".txt");
+			bw1.write("This fits B3 to B" + (maxPower + 2) + " into the virial expansion since maxPower is set to " + maxPower + ".");
 			bw1.newLine();
 			bw1.write("Number of particles: " + particles.N);
 			bw1.newLine();
@@ -654,8 +654,7 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 
 		// Write virial coefficients to a separate file
 		try {
-			File virialFile = new File("data/APS_2026/Liquid_Phase/VirialCoefficientsXlink3e-5" + particles.fileExtension + ".txt");
-			
+			File virialFile = new File("data/APS_2026/Liquid_Phase/Facet/VirialCoefficientsMaxPower" + maxPower + "_" + particles.fileExtension + ".txt");			
 			// Create parent directory if it doesn't exist
 			File virialDir = virialFile.getParentFile();
 			if (virialDir != null && !virialDir.exists()) {
@@ -670,6 +669,8 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 			BufferedWriter bw2 = new BufferedWriter(fw2);
 
 			// Write header with system parameters
+			bw2.write("This fits B3 to B" + (maxPower + 2) + " into the virial expansion since maxPower is set to " + maxPower + ".");
+			bw2.newLine();
 			bw2.write("===== Virial Coefficients for Hertzian Microgels =====");
 			bw2.newLine();
 			bw2.write("x-link fraction: " + particles.xLinkFrac);
