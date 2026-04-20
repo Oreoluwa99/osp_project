@@ -92,6 +92,8 @@
       public double capVolAfterTrialMove[][], capVolBeforeTrialMove[][]; // stores the cap volume for each j microgel before and after a move
       public double totalVolFrac;
       public double nonOverlappingVol, volumeFraction;
+      public double modifiedSwellingRatioAccumulator;
+
       
 
       /**
@@ -151,6 +153,7 @@
          boltzmannFactorAccumulator = 0;
          numberOfConfigurations = 0;
          squaredDisplacementAccumulator = 0;
+         modifiedSwellingRatioAccumulator = 0;
          volFracAccumulator = 0;
          dxOverN = 0; // change in displacement per particle trial move
          dyOverN = 0;
@@ -658,7 +661,15 @@
                   squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
                   springEnergyAccumulator += springEnergySum; // accumulates all the spring energies        
                   // Accumulate the volume fraction
-                  volFracAccumulator += calculateVolumeFraction();            }
+                  volFracAccumulator += calculateVolumeFraction();       
+                  
+                  for (i = 0; i < N; i++) {
+                     double Vm = (4.0/3.0)*Math.PI*Math.pow(a[i],3);
+                     double Vc = capVolSumBeforeMoveArray[i];
+                     modifiedSwellingRatioAccumulator += a[i]*Math.pow((Vm-Vc)/Vm, 1.0/3.0);
+                  }
+
+                  }
                }
          }
       }
@@ -792,6 +803,11 @@
          // System.out.println("meanR " + meanR);
 
          return meanR;
+      }
+
+      public double meanModifiedRadius() {
+         if (numberOfConfigurations == 0) return 0;
+         return modifiedSwellingRatioAccumulator / N / numberOfConfigurations;
       }
 
       /* compute mean volume fraction after stopping */

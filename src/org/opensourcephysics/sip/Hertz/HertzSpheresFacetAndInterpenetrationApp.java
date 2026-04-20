@@ -43,9 +43,9 @@ import java.util.ArrayList;
 
 public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation {
 	public enum WriteModes {WRITE_NONE, WRITE_RADIAL, WRITE_ALL;};
-	//HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
+	HertzSpheresNonLocalFacet particles = new HertzSpheresNonLocalFacet(); // with all the particles (code before Alan made changes)
 	//HertzSpheresInterpenetration particles = new HertzSpheresInterpenetration(); // the optimized version of the interpenetration code
-	HertzSpheresInterpenetrationNearestNeigbour particles = new HertzSpheresInterpenetrationNearestNeigbour(); // the interpenetration code with nearest neighbor interactions only
+	//HertzSpheresInterpenetrationNearestNeigbour particles = new HertzSpheresInterpenetrationNearestNeigbour(); // the interpenetration code with nearest neighbor interactions only
 	//HertzSpheresNonLocalFacetNearestNeighbors particles = new HertzSpheresNonLocalFacetNearestNeighbors(); // with nearest neighbor interactions only for facet model
 	//HertzSpheresNonLocalFacetNearestNeighbors_V2 particles = new HertzSpheresNonLocalFacetNearestNeighbors_V2(); // for Hertz spheres without facet interactions
 	//HertzSpheresSolidPhase particles = new HertzSpheresSolidPhase(); // both interpenetration and facet algorithms
@@ -88,6 +88,7 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 	List<Double> swellingRatioList = new ArrayList<>();
 	List<Double> lindemannParameterList = new ArrayList<>();
 	List<Double> volumefractionList = new ArrayList<>();
+	List<Double> modifiedSwellingRatioList = new ArrayList<>();
 
 	DecimalFormat decimalFormat = new DecimalFormat("#.#######"); // to round my dryVolFrac values to 3 dp
 
@@ -211,12 +212,14 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 				control.println("alpha: "+particles.meanRadius());
 				control.println("lindemannParameter: "+lindemannParameter);
 				control.println("phi: "+(particles.meanVolFrac()));
+				control.println("alpha_tilde: "+(particles.meanModifiedRadius()));
 				
 				dryVolFracs.add(dryVolFrac); // the dry volume fraction list
 				totalVolList.add(particles.totalVol); // the total volume list
 				lindemannParameterList.add(lindemannParameter); // the lindemann parameter list
 				reservoirVolFracList.add(particles.reservoirVolFrac); // the reservoir volume fraction list
 				swellingRatioList.add(particles.meanRadius()); // the swelling ratio list
+				modifiedSwellingRatioList.add(particles.meanModifiedRadius());
 				volumefractionList.add(particles.meanVolFrac()); // the volume fraction list
 
 				//increment the dry volume fraction
@@ -253,27 +256,27 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 	public void reset() {
 		enableStepsPerDisplay(true);
 		//control.setValue("Lambda increment", 0.1);
-		control.setValue("DryVolFracStart", 0.01);
-		control.setValue("DryVolFrac Max", 0.04);
-		control.setValue("DryVolFrac increment", 0.001);
+		control.setValue("DryVolFracStart", 0.001);
+		control.setValue("DryVolFrac Max", 0.004);
+		control.setValue("DryVolFrac increment", 0.0001);
 		control.setValue("Initial configuration", "FCC");
 		control.setValue("N", 32); // number of particles
 		control.setValue("Dry radius [nm]", 50);
-		control.setValue("x-link fraction", 0.001);
+		control.setValue("x-link fraction", 0.00005);
 		control.setValue("Young's calibration", 1); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
-		control.setValue("Displacement tolerance", 0.0);
-		control.setValue("Radius change tolerance", 0.05); 
+		control.setValue("Displacement tolerance", 0.1);
+		control.setValue("Radius change tolerance", 0.05);
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
-		control.setValue("Snapshot interval", 100); // steps separating successive samples
+		control.setValue("Snapshot interval", 50); // steps separating successive samples
 		control.setValue("Stop", 100000); // steps after which statistics collection stops
 		control.setValue("Size bin width", .001); // bin width of particle radius histogram
-		control.setValue("g(r) bin width", .005); // bin width of g(r) histogram
+		control.setValue("g(r) bin width", .002); // bin width of g(r) histogram
 		control.setValue("Delta k", .005); // bin width of S(k) histogram
 		control.setValue("File extension", "1");
 		// control.setValue("Calculate structure", false); // true means calculate g(r) and S(k)
-		control.setValue("Calculate structure", true); // true means calculate g(r) and S(k)
+		control.setValue("Calculate structure", false); // true means calculate g(r) and S(k)
 		control.setAdjustableValue("Visualization on", true);
 	}
 
@@ -293,88 +296,102 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 
 		particles.volFrac = particles.volFrac / ((particles.stop - particles.delay) / particles.snapshotInterval); // average system volume fraction in equilibrium
 
-		// write system parameters to a file in the data subdirectory
-		try {
-			File systemInfo = new File("data/systemInfo" + particles.fileExtension + ".txt");
+		// // write system parameters to a file in the data subdirectory
+		// try {
+		// 	File systemInfo = new File("data/ssf_and_rdf_data/longer_runs_for_RSC/systemInfo" + particles.fileExtension + ".txt");
 
-			if (!systemInfo.exists()) { // if file doesn't exist, create it
-				systemInfo.createNewFile();
-			}
+		// 	if (!systemInfo.exists()) { // if file doesn't exist, create it
+		// 		systemInfo.createNewFile();
+		// 	}
 
-			FileWriter fw = new FileWriter(systemInfo.getAbsoluteFile());
-			BufferedWriter bw = new BufferedWriter(fw);
+		// 	FileWriter fw = new FileWriter(systemInfo.getAbsoluteFile());
+		// 	BufferedWriter bw = new BufferedWriter(fw);
 
-			bw.write("Number of particles: " + particles.N);
-			bw.newLine();
-			bw.write("Initial configuration: " + particles.initConfig);
-			bw.newLine();
-			bw.write("Dry microgel radius [nm]: " + particles.dryR);
-			bw.newLine();
-			bw.write("Box length [units of dry radius]: " + particles.side);
-			bw.newLine();
-			bw.write("Number of monomers: " + particles.nMon);
-			bw.newLine();
-			bw.write("Number of chains: " + particles.nChains);
-			bw.newLine();
-			bw.write("Flory interaction parameter (chi): " + particles.chi);
-			bw.newLine();
-			bw.write("Young's calibration factor: " + particles.Young);
-			bw.newLine();
-			bw.write("x-link fraction: " + particles.xLinkFrac);
-			bw.newLine();
-			bw.write("x-link fraction increment: " + particles.dphi);
-			bw.newLine();
-			bw.write("MC steps: " + particles.steps);
-			bw.newLine();
-			bw.write("Equilibration steps: " + particles.delay);
-			bw.newLine();
-			bw.write("Snapshot interval: " + particles.snapshotInterval);
-			bw.newLine();
-			bw.write("Displacement tolerance: " + particles.tolerance);
-			bw.newLine();
-			bw.write("Particle radius change tolerance: " + particles.atolerance);
-			bw.newLine();
-			bw.write("Particle radius bin width: " + particles.sizeBinWidth);
-			bw.newLine();
-			bw.write("g(r) bin width: " + particles.grBinWidth);
-			bw.newLine();
-			//bw.newLine();
-			//bw.write("Mean free energy per particle <F>/N [kT]: " + particles.meanFreeEnergy());
-			bw.close();
-		}
+		// 	bw.write("#Minimum dry volume fraction: " + dryVolFracStart);
+		// 	bw.newLine();	
+		// 	bw.write("#Maximum dry volume fraction: " + dryVolFracMax);
+		// 	bw.newLine();
+		// 	bw.write("#Dry volume fraction increment: " + particles.dphi);
+		// 	bw.newLine();
+		// 	bw.write("#Initial configuration: " + particles.initConfig);
+		// 	bw.newLine();
+		// 	bw.write("#Number of particles: " + particles.N);
+		// 	bw.newLine();
+		// 	bw.write("#Dry volume fraction increment: " + particles.dphi);
+		// 	bw.newLine();
+		// 	bw.write("#Minimum dry volume fraction: " + dryVolFracStart);
+		// 	bw.newLine();
+		// 	bw.write("#Maximum dry volume fraction: " + dryVolFracMax);
+		// 	bw.newLine();
+		// 	bw.write("#Initial configuration: " + particles.initConfig);
+		// 	bw.newLine();
+		// 	bw.write("#Dry microgel radius [nm]: " + particles.dryR);
+		// 	bw.newLine();
+		// 	bw.write("#Box length [units of drsoftnessy radius]: " + particles.side);
+		// 	bw.newLine();
+		// 	bw.write("#Number of monomers: " + particles.nMon);
+		// 	bw.newLine();
+		// 	bw.write("#Number of chains: " + particles.nChains);
+		// 	bw.newLine();
+		// 	bw.write("#Flory interaction parameter (chi): " + particles.chi);
+		// 	bw.newLine();
+		// 	bw.write("#Young's calibration factor: " + particles.Young);
+		// 	bw.newLine();
+		// 	bw.write("#x-link fraction: " + particles.xLinkFrac);
+		// 	bw.newLine();
+		// 	bw.write("#x-link fraction increment: " + dxLink);
+		// 	bw.newLine();
+		// 	bw.write("#MC steps: " + particles.steps);
+		// 	bw.newLine();
+		// 	bw.write("#Equilibration steps: " + particles.delay);
+		// 	bw.newLine();
+		// 	bw.write("#Snapshot interval: " + particles.snapshotInterval);
+		// 	bw.newLine();
+		// 	bw.write("#Displacement tolerance: " + particles.tolerance);
+		// 	bw.newLine();
+		// 	bw.write("#Particle radius change tolerance: " + particles.atolerance);
+		// 	bw.newLine();
+		// 	bw.write("#Particle radius bin width: " + particles.sizeBinWidth);
+		// 	bw.newLine();
+		// 	bw.write("#g(r) bin width: " + particles.grBinWidth);
+		// 	bw.newLine();
+		// 	//bw.newLine();
+		// 	//bw.write("Mean free energy per particle <F>/N [kT]: " + particles.meanFreeEnergy());
+		// 	bw.close();
+		// }
 
-		catch (IOException e) {
-			e.printStackTrace();
-		}
+		// catch (IOException e) {
+		// 	e.printStackTrace();
+		// }
 
 		// write size distribution to a file in the data subdirectory
 
+		// try {
+		// 	File sizeFile = new File("data/ssf_and_rdf_data/longer_runs_for_RSC/microgelSize" + particles.fileExtension + ".txt");
+
+		// 	if (!sizeFile.exists()) { // if file doesn't exist, create it
+		// 		sizeFile.createNewFile();
+		// 	}
+
+		// 	FileWriter fwrite = new FileWriter(sizeFile.getAbsoluteFile());
+		// 	BufferedWriter bwrite = new BufferedWriter(fwrite);
+		// 	for (int i = 0; i < particles.numberBins; i++) {
+		// 		bwrite.write(i + " " + particles.sizeDist[i]);
+		// 		bwrite.newLine();
+		// 	}
+
+		// 	bwrite.close();
+
+		// }
+
+		// catch (IOException e) {
+		// 	e.printStackTrace();
+		// }
+
 		try {
-			File sizeFile = new File("data/microgelSize" + particles.fileExtension + ".txt");
-
-			if (!sizeFile.exists()) { // if file doesn't exist, create it
-				sizeFile.createNewFile();
-			}
-
-			FileWriter fwrite = new FileWriter(sizeFile.getAbsoluteFile());
-			BufferedWriter bwrite = new BufferedWriter(fwrite);
-			for (int i = 0; i < particles.numberBins; i++) {
-				bwrite.write(i + " " + particles.sizeDist[i]);
-				bwrite.newLine();
-			}
-
-			bwrite.close();
-
-		}
-
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-
-		try {
-			//File outputFile = new File("data/Lindemann_Parameter/StabilityData"+particles.fileExtension+".txt");
-			File outputFile = new File("data/APS_2026/Penetration/PenetrationData_12nn"+particles.fileExtension+".txt");
-			//File outputFile = new File("data/ssf_and_rdf_data/Penetration/penetration_data_new"+particles.fileExtension+".txt");
+			File outputFile = new File("data/Comprehensive_Report_Data/Lindemann_vs_Phi/Facet_32_Microgels/Facet_x_link_5e-5"+particles.fileExtension+".txt");
+			//File outputFile = new File("data/APS_2026/Penetration/PenetrationData_12nn"+particles.fileExtension+".txt");
+			//File outputFile = new File("data/ssf_and_rdf_data/longer_runs_for_RSC/facet_rdf_500K_steps"+particles.fileExtension+".txt");
 
 			if (!outputFile.exists()) {
 				outputFile.createNewFile();
@@ -430,13 +447,18 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 			bw1.write("#g(r) bin width: " + particles.grBinWidth);
 			bw1.newLine();
 			//bw1.write("#phi0,		   phi,       	   <alpha>,      		zeta, 	 	 	  lindemannParameter");
-			bw1.write("#phi0,		  phi,			 <alpha>,      		zeta, 	 	 	  lindemannParameter");
+			bw1.write("#phi0,    phi,    <alpha>,    <alpha_tilde>,    zeta,    lindemannParameter");
 			bw1.newLine();
 
 			for (int i = 1; i < dryVolFracs.size() - 1; i++) {
 				double roundedDryVolFrac = Double.parseDouble(decimalFormat.format(dryVolFracs.get(i)));
-				bw1.write(roundedDryVolFrac + ", " + volumefractionList.get(i) + ", " + swellingRatioList.get(i) + ", " + reservoirVolFracList.get(i) + ", " + lindemannParameterList.get(i));
-				bw1.newLine();
+				bw1.write(roundedDryVolFrac + ", " + 
+					volumefractionList.get(i) + ", " + 
+					swellingRatioList.get(i) + ", " + 
+					modifiedSwellingRatioList.get(i) + ", " + 
+					reservoirVolFracList.get(i) + ", " + 
+					lindemannParameterList.get(i));
+		  		bw1.newLine();
 			}
 			bw1.close();
 		} catch (IOException e) {

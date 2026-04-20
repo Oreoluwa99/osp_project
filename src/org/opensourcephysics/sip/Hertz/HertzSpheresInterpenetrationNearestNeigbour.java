@@ -84,6 +84,7 @@ public class HertzSpheresInterpenetrationNearestNeigbour {
       public double volumeOfSolvent;  // volume of solvent in units of dry radius cubed
       public double mixF_FR, mixF_Interpenetration;   // mixing free energy terms
       public int[][] nearestNeighbors; // Each particle has exactly 12 nearest neighbors
+      public double modifiedSwellingRatioAccumulator;
 
    /**
     * Initialize the model.
@@ -126,6 +127,7 @@ public class HertzSpheresInterpenetrationNearestNeigbour {
       numberOfConfigurations = 0;
       squaredDisplacementAccumulator = 0;
       volFracAccumulator = 0;
+      modifiedSwellingRatioAccumulator = 0;
       dxOverN = 0; // change in displacement per particle trial move
       dyOverN = 0;
       dzOverN = 0;
@@ -601,18 +603,25 @@ public class HertzSpheresInterpenetrationNearestNeigbour {
          totalVirial += virialSum;
       }
 
-      if (steps > delay && (steps - delay) % snapshotInterval == 0) {
-         numberOfConfigurations++;
-         totalVirial *= 0.5; // correct for double counting
-         totalEnergy = totalPairEnergy + totalFreeEnergy;
-
-         pairEnergyAccumulator += totalPairEnergy;
-         energyAccumulator += totalEnergy;
-         freeEnergyAccumulator += totalFreeEnergy;
-         virialAccumulator += totalVirial;
-         springEnergyAccumulator += springEnergySum;
-         squaredDisplacementAccumulator += squaredDisplacementSum;
-         volFracAccumulator += calculateVolumeFraction();
+      if (steps > delay){
+         if ((steps-delay)%snapshotInterval==0){
+            numberOfConfigurations++;
+            totalVirial *= 0.5;
+            totalEnergy = totalPairEnergy + totalFreeEnergy;
+            pairEnergyAccumulator += totalPairEnergy;
+            energyAccumulator += totalEnergy;
+            freeEnergyAccumulator += totalFreeEnergy;
+            virialAccumulator += totalVirial;
+            squaredDisplacementAccumulator += squaredDisplacementSum;
+            springEnergyAccumulator += springEnergySum;
+            volFracAccumulator += calculateVolumeFraction();
+            // add alpha-tilde accumulation here
+            for (int i = 0; i < N; i++) {
+               double Vm = (4.0/3.0)*Math.PI*Math.pow(a[i],3);
+               double Vc = capVolSumBeforeMoveArray[i];
+               modifiedSwellingRatioAccumulator += a[i]*Math.pow((Vm-Vc)/Vm, 1.0/3.0);
+            }
+         }
       }
    }
 
@@ -682,6 +691,11 @@ public class HertzSpheresInterpenetrationNearestNeigbour {
       meanR = 0;
         // System.out.println("meanR " + meanR);
       return meanR;
+   }
+
+   public double meanModifiedRadius() {
+      if (numberOfConfigurations == 0) return 0;
+      return modifiedSwellingRatioAccumulator / N / numberOfConfigurations;
    }
 
     /* compute mean volume fraction after stopping */

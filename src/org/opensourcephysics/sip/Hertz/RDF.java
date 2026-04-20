@@ -76,7 +76,7 @@ public class RDF {
 	normalize();
 
 	try{
-	    File radFile = new File("data/ssf_and_rdf_data/Penetration/penetration_rdf_new" + extension + ".txt");
+	    File radFile = new File("data/ssf_and_rdf_data/longer_runs_for_RSC/facet_rdf/facet_rdf_500K_steps" + extension + ".txt");
 	    
 	    if (!radFile.exists()) { // if file doesn't exist, create it
 		radFile.createNewFile();

@@ -94,6 +94,7 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
     public double totalVolFrac;
     public double nonOverlappingVol, volumeFraction;
     public int[][] nearestNeighbors; // Each microgel has exactly 12 nearest neighbors
+    public double modifiedSwellingRatioAccumulator;
    
 
    /**
@@ -160,6 +161,7 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
       numberOfConfigurations = 0;
       squaredDisplacementAccumulator = 0;
       volFracAccumulator = 0;
+      modifiedSwellingRatioAccumulator = 0;
       dxOverN = 0; // change in displacement per particle trial move
       dyOverN = 0;
       dzOverN = 0;
@@ -735,7 +737,13 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
                squaredDisplacementAccumulator += squaredDisplacementSum; // accumulates the mean sqaure displacement
                springEnergyAccumulator += springEnergySum; // accumulates all the spring energies
                // Accumulate the volume fraction
-               volFracAccumulator += calculateVolumeFraction();            }
+               volFracAccumulator += calculateVolumeFraction();
+               for (int i = 0; i < N; i++) {
+                  double Vm = (4.0/3.0)*Math.PI*Math.pow(a[i],3);
+                  double Vc = capVolSumBeforeMoveArray[i];
+                  modifiedSwellingRatioAccumulator += a[i]*Math.pow((Vm-Vc)/Vm, 1.0/3.0);
+               }
+            }
          }
    }
 
@@ -812,6 +820,12 @@ public class HertzSpheresNonLocalFacetNearestNeighbors {
 
       return meanR;
    }
+
+      public double meanModifiedRadius() {
+         if (numberOfConfigurations == 0) return 0;
+         return modifiedSwellingRatioAccumulator / N / numberOfConfigurations;
+      }
+
       /* compute mean volume fraction after stopping */
       public double calculateVolumeFraction() { // instantaneous volume fraction 
             double microgelVol, overlapVol; 
