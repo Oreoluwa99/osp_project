@@ -4,8 +4,9 @@
 	elastic pair potential and swelling according to the Flory-Rehner free energy. This version includes
 	methods for fitting higher-order virial coefficients from the simulation data, building the virial
 	fit curve, and computing thermodynamic quantities such as the free energy, chemical potential, and
-	pressure for the fluid phase. The code also includes methods for polynomial fitting and interpolation
-	to analyze the simulation results and extract the virial coefficients.
+	pressure for the fluid phase. The Flory-Rehner free energy is computed analytically from a smooth
+	polynomial fit to the simulated swelling ratio alpha(phi0), replacing the earlier linear
+	interpolation of discrete simulation free energy values.
 */
 
 package org.opensourcephysics.sip.Hertz;
@@ -59,7 +60,6 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 	boolean incrementDryVolFrac = true;
 	boolean flag = false;
 	double totalVol;
-	double floryFperVol;
 	double pairEnergy = 0;
 	double n;
 	double uPairPerVol;
@@ -68,7 +68,6 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 	List<Double> dryVolFracs = new ArrayList<>();
     List<Double> totalSums = new ArrayList<>();
 	List<Double> chemicalPotList = new ArrayList<>();
-	List<Double> floryFperVolList = new ArrayList<>();
 	List<Double> idealFreeEnergyList = new ArrayList<>();
 	List<Double> fExPerVolList = new ArrayList<>();
 	List<Double> calculatedPressures = new ArrayList<>();
@@ -237,51 +236,44 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 		return ols.estimateRegressionParameters(); // returns fitted coefficients [B3, B4, ..., B_{p+2}]
 	}
 
-	private double interpolateB2(double rho) {
-
+	private double floryRehnerFreeEnergy(double alpha, double rho) {
 		/**
-		 * Performs linear interpolation to estimate the second virial coefficient B2
-		 * at an arbitrary density rho using precomputed discrete data points.
+		 * Computes the Flory-Rehner free energy density f_FR/V analytically
+		 * from the swelling ratio alpha, referenced to the reservoir state.
 		 *
-		 * Mathematical form:
-		 *   B2(rho) = B21 + ((rho - r1) / (r2 - r1)) * (B22 - B21)
-		 *
-		 * where:
-		 *   (r1, B21) and (r2, B22) are consecutive data points such that r1 ≤ rho ≤ r2.
+		 * Formula (per particle, then converted to per volume):
+		 *   f_mix    = nMon * [(alpha^3 - 1)*ln(1 - 1/alpha^3) + chi*(1 - 1/alpha^3)]
+		 *   f_el     = 1.5 * nChains * (alpha^2 - ln(alpha) - 1)
+		 *   f_FR     = f_mix + f_el - totalFRSR   (reservoir reference subtracted)
+		 *   f_FR/V   = f_FR * rho                 (per volume = per particle * number density)
 		 */
 
-		int n = rhoList.size();  // total number of available (rho, B2) data points
+		double alpha3 = alpha * alpha * alpha;
 
-		// If rho is below the smallest sampled density, return the first B2 value
-		if (rho <= rhoList.get(0)) {
-			return secondVirialCoefficientList.get(0);
-		}
+		// Mixing contribution (Flory-Huggins)
+		double mixF = particles.nMon * (
+			(alpha3 - 1.0) * Math.log(1.0 - 1.0 / alpha3)
+			+ particles.chi * (1.0 - 1.0 / alpha3)
+		);
 
-		// If rho is above the largest sampled density, return the last B2 value
-		if (rho >= rhoList.get(n - 1)) {
-			return secondVirialCoefficientList.get(n - 1);
-		}
+		// Elastic contribution (Gaussian network)
+		double elasticF = 1.5 * particles.nChains * (alpha * alpha - Math.log(alpha) - 1.0);
 
-		// Iterate through consecutive pairs (r1, r2) to find where rho lies
-		for (int i = 0; i < n - 1; i++) {
+		// Reservoir state reference (single particle in solvent, infinite dilution)
+		double SR = particles.reservoirSR;
+		double SR3 = SR * SR * SR;
+		double mixFRSR = particles.nMon * (
+			(SR3 - 1.0) * Math.log(1.0 - 1.0 / SR3)
+			+ particles.chi * (1.0 - 1.0 / SR3)
+		);
+		double elasticFRSR = 1.5 * particles.nChains * (SR * SR - Math.log(SR) - 1.0);
+		double totalFRSR = mixFRSR + elasticFRSR;
 
-			double r1 = rhoList.get(i);       // lower bound density
-			double r2 = rhoList.get(i + 1);   // upper bound density
+		// Per-particle FR free energy referenced to reservoir
+		double fFRperParticle = mixF + elasticF - totalFRSR;
 
-			// Check if rho is within this interval
-			if (rho >= r1 && rho <= r2) {
-
-				double B21 = secondVirialCoefficientList.get(i);     // B2 at r1
-				double B22 = secondVirialCoefficientList.get(i + 1); // B2 at r2
-
-				// --- Linear interpolation ---
-				// Compute B2(rho) assuming a linear variation between r1 and r2
-				return B21 + (rho - r1) * (B22 - B21) / (r2 - r1);
-			}
-		}
-
-		// Return the last value as a safety measure
-		return secondVirialCoefficientList.get(n - 1);
+		// Convert to per-volume
+		return fFRperParticle * rho;
 	}
 
 	private void buildVirialFitCurve(double[] virial, int nFitPoints) {
@@ -290,13 +282,17 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 		 * Builds the virial fit curve and computes thermodynamic quantities
 		 * (free energy, chemical potential, pressure) for the fluid phase.
 		 *
-		 * Three steps:
-		 *   Step 1 - build fine grid of 500 points and compute f_id, f_FR, f_ex at each point
-		 *   Step 2 - fit separate polynomials to each free energy contribution
+		 * Steps:
+		 *   Step 0 - fit polynomial to alpha vs phi0 from discrete simulation points
+		 *   Step 1 - build fine 500-point grid; compute f_id, f_FR (analytic), f_ex at each point
+		 *   Step 2 - fit separate polynomials to each free energy contribution vs phi0
 		 *   Step 3 - differentiate each polynomial analytically to get mu and PV/NkT
 		 *
-		 * This separation allows us to see exactly which contribution (ideal, FR, excess)
-		 * dominates the chemical potential and pressure at each density.
+		 * Key change from previous version:
+		 *   f_FR is now computed analytically from the Flory-Rehner formula using a
+		 *   smooth polynomial alpha(phi0), rather than linearly interpolating the
+		 *   discrete simulation values of meanFreeEnergy(). This gives a physically
+		 *   consistent and smooth f_FR on the fine grid.
 		 */
 
 		// Clear all output lists before filling them
@@ -320,61 +316,81 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 		PVFRFitCurveList.clear();
 		PVExFitCurveList.clear();
 
-		double rhoMin = rhoList.get(0);
-		double rhoMax = rhoList.get(rhoList.size() - 1);
-		double factor = 0.75 / Math.PI; // conversion: rho = factor * phi0
+		double rhoMin  = rhoList.get(0);
+		double rhoMax  = rhoList.get(rhoList.size() - 1);
+		double factor  = 0.75 / Math.PI; // rho = factor * phi0
+
+		// ===========================
+		// Step 0: fit polynomial to alpha vs phi0 from discrete simulation points
+		// This gives a smooth alpha(phi0) to use in the Flory-Rehner formula
+		// ===========================
+		int nDisc = rhoList.size(); // number of discrete simulation points (~28)
+
+		double[] phi0Disc  = new double[nDisc];
+		double[] alphaDisc = new double[nDisc];
+		double[] phiDisc   = new double[nDisc];
+
+		for (int i = 0; i < nDisc; i++) {
+			phi0Disc[i]  = rhoList.get(i) / factor;         // phi0 at each discrete point
+			alphaDisc[i] = swellingRatioList.get(i);        // alpha from simulation
+			phiDisc[i]   = volumefractionList.get(i);       // phi from simulation
+		}
+
+		// Fit polynomial alpha(phi0) to discrete simulation points
+		double[] coeffsAlpha = fitPoly(alphaDisc, phi0Disc, nDisc, maxPower);
+		double[] coeffsPhi   = fitPoly(phiDisc,   phi0Disc, nDisc, maxPower);
 
 		// ===========================
 		// Step 1: build fine grid arrays
-		// Compute f_id, f_FR, f_ex at each of the 500 grid points
+		// Compute f_id, f_FR (analytic), f_ex at each of the 500 grid points
 		// ===========================
 		double[] phi0Arr = new double[nFitPoints];
 		double[] phiArr  = new double[nFitPoints];
 		double[] rhoArr  = new double[nFitPoints];
 		double[] ZvirArr = new double[nFitPoints];
-		double[] FidArr  = new double[nFitPoints]; // ideal gas free energy density at each point
-		double[] FfrArr  = new double[nFitPoints]; // Flory-Rehner free energy density at each point
-		double[] FexArr  = new double[nFitPoints]; // excess free energy density at each point
-		double[] FtotArr = new double[nFitPoints]; // total free energy density at each point
+		double[] FidArr  = new double[nFitPoints];
+		double[] FfrArr  = new double[nFitPoints];
+		double[] FexArr  = new double[nFitPoints];
+		double[] FtotArr = new double[nFitPoints];
 
 		for (int i = 0; i < nFitPoints; i++) {
 
-			// uniformly spaced density grid from rhoMin to rhoMax
-			double rho   = rhoMin + (rhoMax - rhoMin) * i / (nFitPoints - 1);
-			double phi0  = rho / factor;                      // dry volume fraction
-			double alpha = interpolateAlpha(rho);             // swelling ratio at this rho
-			double phi   = interpolatePhi(rho);               // swollen volume fraction at this rho
+			// Uniformly spaced density grid from rhoMin to rhoMax
+			double rho  = rhoMin + (rhoMax - rhoMin) * i / (nFitPoints - 1);
+			double phi0 = rho / factor;
 
-			// Flory-Rehner free energy density interpolated from simulation data
-			// referenced to the reservoir state (single particle in solvent)
-			double FfrV = interpolate(rhoList, floryFperVolList, rho);
+			// Smooth alpha from polynomial fit to discrete simulation points
+			double alpha = evalPoly(coeffsAlpha, phi0, maxPower);
 
-			// B2 computed analytically from the interpolated swelling ratio alpha
+			// Smooth phi from polynomial fit
+			double phi = evalPoly(coeffsPhi, phi0, maxPower);
+
+			// B2 computed analytically from smooth alpha
 			double B2 = particles.secondVirialCoefficient(alpha, alpha);
 
-			// Z_virial smooth curve: Z = 1 + B2*rho + B3*rho^2 + ...
+			// Z_virial: Z = 1 + B2*rho + B3*rho^2 + ...
 			double Zvir = 1.0 + B2 * rho;
 			for (int k = 0; k < virial.length; k++) {
-				int n = k + 3; // n=3 for B3, n=4 for B4, etc.
-				Zvir += virial[k] * Math.pow(rho, n - 1);
+				int nn = k + 3;
+				Zvir += virial[k] * Math.pow(rho, nn - 1);
 			}
 
-			// Excess free energy density from integrating (Z-1)/rho over rho:
-			// f_ex/V = B2*rho^2 + B3*rho^3/2 + B4*rho^4/3 + ...
+			// Excess free energy density from integrating virial EOS:
+			// f_ex = B2*rho^2 + B3*rho^3/2 + B4*rho^4/3 + ...
 			double FexV = B2 * rho * rho;
 			for (int k = 0; k < virial.length; k++) {
-				int n = k + 3;
-				FexV += virial[k] * Math.pow(rho, n) / (n - 1.0);
+				int nn = k + 3;
+				FexV += virial[k] * Math.pow(rho, nn) / (nn - 1.0);
 			}
 
 			// Ideal gas free energy density:
-			// f_id/V = (3/4pi) * phi0 * (ln(rho) - 1) + Stirling correction
+			// f_id = (3/4pi) * phi0 * (ln(rho) - 1) + Stirling correction
 			double stirling = factor * phi0
 							* Math.log(2.0 * Math.PI * particles.N) / (2.0 * particles.N);
-			
 			double FidV = factor * phi0 * (Math.log(rho) - 1.0) + stirling;
 
-			// Total free energy density: f_total = f_id + f_FR + f_ex
+			// Total free energy density
+			double FfrV = floryRehnerFreeEnergy(alpha, rho);
 			double FtotV = FidV + FfrV + FexV;
 
 			// Store in arrays for polynomial fitting in Step 2
@@ -397,280 +413,61 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 		}
 
 		// ===========================
-		// Step 2: fit separate polynomials to each free energy contribution
-		// Using maxPower as the polynomial degree for consistency with the virial fit
+		// Step 2: fit polynomials to each free energy contribution vs phi0
 		// ===========================
-		int polyDegree = maxPower; // same order as virial EOS fit for consistency
+		int polyDegree = maxPower;
 
-		// Fit one polynomial per contribution
-		// coeffs = [c0, c1, c2, ..., cn] where f(phi0) = c0 + c1*phi0 + c2*phi0^2 + ...
-		double[] coeffsId  = fitPoly(FidArr,  phi0Arr, nFitPoints, polyDegree); // ideal
-		double[] coeffsFR  = fitPoly(FfrArr,  phi0Arr, nFitPoints, polyDegree); // Flory-Rehner
-		double[] coeffsEx  = fitPoly(FexArr,  phi0Arr, nFitPoints, polyDegree); // excess
-		double[] coeffsTot = fitPoly(FtotArr, phi0Arr, nFitPoints, polyDegree); // total
+		double[] coeffsId  = fitPoly(FidArr,  phi0Arr, nFitPoints, polyDegree);
+		double[] coeffsFR  = fitPoly(FfrArr,  phi0Arr, nFitPoints, polyDegree);
+		double[] coeffsEx  = fitPoly(FexArr,  phi0Arr, nFitPoints, polyDegree);
+		double[] coeffsTot = fitPoly(FtotArr, phi0Arr, nFitPoints, polyDegree);
 
 		// ===========================
-		// Step 3: evaluate mu and PV/NkT analytically for each contribution
+		// Step 3: evaluate mu and PV/NkT analytically from polynomial derivatives
 		//
-		// Chemical potential:   mu = (4pi/3) * dF/dphi0
-		// Pressure:    PV/NkT = (4pi/3)/phi0 * (phi0 * dF/dphi0 - F_fit)
-		//
-		// Both computed from the analytical derivative of the polynomial —
-		// no numerical differentiation error
+		// mu        = (4pi/3) * dF/dphi0
+		// PV/NkT    = (4pi/3)/phi0 * (phi0 * dF/dphi0 - F_fit)
 		// ===========================
-		double prefac = 4.0 * Math.PI / 3.0; // prefactor = 4pi/3 = 1/factor
+		double prefac = 4.0 * Math.PI / 3.0;
 
 		for (int i = 0; i < nFitPoints; i++) {
-			double p = phi0Arr[i]; // current phi0 value
+			double p = phi0Arr[i];
 
-			// Evaluate each free energy contribution from its polynomial fit
-			double F_id  = evalPoly(coeffsId,  p, polyDegree); // f_id at phi0
-			double F_fr  = evalPoly(coeffsFR,  p, polyDegree); // f_FR at phi0
-			double F_ex  = evalPoly(coeffsEx,  p, polyDegree); // f_ex at phi0
-			double F_tot = evalPoly(coeffsTot, p, polyDegree); // f_total at phi0
+			double F_id  = evalPoly(coeffsId,  p, polyDegree);
+			double F_fr  = evalPoly(coeffsFR,  p, polyDegree);
+			double F_ex  = evalPoly(coeffsEx,  p, polyDegree);
+			double F_tot = evalPoly(coeffsTot, p, polyDegree);
 
-			// Evaluate analytical derivatives dF/dphi0 for each contribution
-			double dFid  = evalPolyDeriv(coeffsId,  p, polyDegree); // df_id/dphi0
-			double dFfr  = evalPolyDeriv(coeffsFR,  p, polyDegree); // df_FR/dphi0
-			double dFex  = evalPolyDeriv(coeffsEx,  p, polyDegree); // df_ex/dphi0
-			double dFtot = evalPolyDeriv(coeffsTot, p, polyDegree); // df_total/dphi0
+			double dFid  = evalPolyDeriv(coeffsId,  p, polyDegree);
+			double dFfr  = evalPolyDeriv(coeffsFR,  p, polyDegree);
+			double dFex  = evalPolyDeriv(coeffsEx,  p, polyDegree);
+			double dFtot = evalPolyDeriv(coeffsTot, p, polyDegree);
 
-			// Chemical potential contributions: mu = (4pi/3) * dF/dphi0
-			double mu_id  = prefac * dFid;  // ideal gas contribution to mu
-			double mu_fr  = prefac * dFfr;  // Flory-Rehner contribution to mu
-			double mu_ex  = prefac * dFex;  // excess contribution to mu
-			double mu_tot = prefac * dFtot; // total chemical potential
+			double mu_id  = prefac * dFid;
+			double mu_fr  = prefac * dFfr;
+			double mu_ex  = prefac * dFex;
+			double mu_tot = prefac * dFtot;
 
-			// Pressure contributions: PV/NkT = (4pi/3)/phi0 * (phi0*dF/dphi0 - F_fit)
-			double PV_id  = prefac / p * (p * dFid  - F_id);  // ideal contribution to PV/NkT
-			double PV_fr  = prefac / p * (p * dFfr  - F_fr);  // FR contribution to PV/NkT
-			double PV_ex  = prefac / p * (p * dFex  - F_ex);  // excess contribution to PV/NkT
-			double PV_tot = prefac / p * (p * dFtot - F_tot); // total PV/NkT
+			double PV_id  = prefac / p * (p * dFid  - F_id);
+			double PV_fr  = prefac / p * (p * dFfr  - F_fr);
+			double PV_ex  = prefac / p * (p * dFex  - F_ex);
+			double PV_tot = prefac / p * (p * dFtot - F_tot);
 
-			// Store free energy contributions
 			FidFitCurveList.add(F_id);
 			FfrFitCurveList.add(F_fr);
 			FexFitCurveList2.add(F_ex);
 			FtotFitCurveList.add(F_tot);
 
-			// Store chemical potential contributions
 			muIdFitCurveList.add(mu_id);
 			muFRFitCurveList.add(mu_fr);
 			muExFitCurveList2.add(mu_ex);
-			muExFitCurveList.add(mu_tot);     // existing list reused for total mu
+			muExFitCurveList.add(mu_tot);
 
-			// Store pressure contributions
 			PVIdFitCurveList.add(PV_id);
 			PVFRFitCurveList.add(PV_fr);
 			PVExFitCurveList.add(PV_ex);
-			pressureFitCurveList.add(PV_tot); // existing list reused for total PV/NkT
+			pressureFitCurveList.add(PV_tot);
 		}
-	}
-
-	private double interpolate(List<Double> xList, List<Double> yList, double x) {
-
-		/**
-		 * Performs linear interpolation to estimate y(x) from discrete data points.
-		 *
-		 * Given a set of ordered pairs (x_i, y_i), this function finds the interval
-		 * [x0, x1] such that x0 ≤ x ≤ x1, and estimates y using:
-		 *
-		 *     y(x) = y0 + ((x - x0) / (x1 - x0)) * (y1 - y0)
-		 *
-		 */
-
-		// Loop through consecutive pairs (x0, x1)
-		for (int i = 0; i < xList.size() - 1; i++) {
-
-			double x0 = xList.get(i);       // lower bound of interval
-			double x1 = xList.get(i + 1);   // upper bound of interval
-
-			// Check if x lies within this interval
-			if (x >= x0 && x <= x1) {
-
-				// Compute interpolation weight (fraction between x0 and x1)
-				double t = (x - x0) / (x1 - x0);
-
-				// Linearly interpolate y between y0 and y1
-				return yList.get(i) + t * (yList.get(i + 1) - yList.get(i));
-			}
-		}
-
-		// Fallback: if x is outside the range, return the last value
-		return yList.get(yList.size() - 1);
-	}
-
-	private double interpolateZfit(double rho) {
-
-		/**
-		 * Performs linear interpolation on the fitted Z(ρ) curve to estimate
-		 * the compressibility factor Z at an arbitrary density rho.
-		 *
-		 * Uses precomputed lists:
-		 *   rhoFitCurveList → sampled density values (sorted)
-		 *   zFitCurveList   → corresponding Z values from virial fit
-		 *
-		 * For a given rho, the method finds the interval [r1, r2] such that:
-		 *      r1 ≤ rho ≤ r2
-		 *
-		 * and computes:
-		 *
-		 *      Z(rho) = z1 + ((rho - r1) / (r2 - r1)) * (z2 - z1)
-		 *
-		 * This ensures a smooth interpolation of the virial EOS curve.
-		 */
-
-		// --- Lower boundary ---
-		// If rho is below the minimum fitted density, return the first Z value
-		if (rho <= rhoFitCurveList.get(0)) {
-			return zFitCurveList.get(0);
-		}
-
-		// --- Upper boundary ---
-		// If rho is above the maximum fitted density, return the last Z value
-		if (rho >= rhoFitCurveList.get(rhoFitCurveList.size() - 1)) {
-			return zFitCurveList.get(zFitCurveList.size() - 1);
-		}
-
-		// --- Find the interval containing rho ---
-		for (int i = 0; i < rhoFitCurveList.size() - 1; i++) {
-
-			double r1 = rhoFitCurveList.get(i);       // lower density bound
-			double r2 = rhoFitCurveList.get(i + 1);   // upper density bound
-
-			// Check if rho lies between r1 and r2
-			if (rho >= r1 && rho <= r2) {
-
-				double z1 = zFitCurveList.get(i);     // Z at r1
-				double z2 = zFitCurveList.get(i + 1); // Z at r2
-
-				// Compute interpolation fraction
-				double t = (rho - r1) / (r2 - r1);
-
-				// Linear interpolation of Z
-				return z1 + t * (z2 - z1);
-			}
-		}
-
-		// --- Fallback ---
-		// Should not normally be reached if rho is within bounds
-		return 0.0;
-	}
-
-	private double interpolateAlpha(double rho) {
-
-		/**
-		 * Performs linear interpolation to estimate the swelling ratio α (alpha)
-		 * at an arbitrary density rho using discrete simulation data.
-		 *
-		 * Uses:
-		 *   rhoList             → sampled densities (sorted)
-		 *   swellingRatioList   → corresponding swelling ratios α(ρ)
-		 *
-		 * For a given rho, the method finds the interval [rho1, rho2] such that:
-		 *      rho1 ≤ rho ≤ rho2
-		 *
-		 * and computes:
-		 *
-		 *      α(rho) = a1 + ((rho - rho1) / (rho2 - rho1)) * (a2 - a1)
-		 *
-		 * Assumptions:
-		 *   - rhoList is sorted in ascending order
-		 *   - swelling ratio varies smoothly with density
-		 */
-
-		int n = rhoList.size();  // number of available data points
-
-		// --- Lower boundary ---
-		// If rho is below the minimum sampled density, return first alpha value
-		if (rho <= rhoList.get(0)) {
-			return swellingRatioList.get(0);
-		}
-
-		// --- Upper boundary ---
-		// If rho is above the maximum sampled density, return last alpha value
-		if (rho >= rhoList.get(n - 1)) {
-			return swellingRatioList.get(n - 1);
-		}
-
-		// --- Find the interval containing rho ---
-		for (int i = 0; i < n - 1; i++) {
-
-			double rho1 = rhoList.get(i);       // lower density bound
-			double rho2 = rhoList.get(i + 1);   // upper density bound
-
-			// Check if rho lies within this interval
-			if (rho >= rho1 && rho <= rho2) {
-
-				double a1 = swellingRatioList.get(i);     // alpha at rho1
-				double a2 = swellingRatioList.get(i + 1); // alpha at rho2
-
-				// Linear interpolation of alpha
-				return a1 + (rho - rho1) * (a2 - a1) / (rho2 - rho1);
-			}
-		}
-
-		// --- Fallback ---
-		// Return last value as a safety measure (should rarely be reached)
-		return swellingRatioList.get(n - 1);
-	}
-
-	private double interpolatePhi(double rho) {
-
-		/**
-		 * Performs linear interpolation to estimate the swollen volume fraction φ
-		 * at an arbitrary density rho using discrete simulation data.
-		 *
-		 * Uses:
-		 *   rhoList              → sampled densities (sorted)
-		 *   volumefractionList  → corresponding swollen volume fractions φ(ρ)
-		 *
-		 * For a given rho, the method finds the interval [rho1, rho2] such that:
-		 *      rho1 ≤ rho ≤ rho2
-		 *
-		 * and computes:
-		 *
-		 *      φ(rho) = φ1 + ((rho - rho1) / (rho2 - rho1)) * (φ2 - φ1)
-		 *
-		 * Assumptions:
-		 *   - rhoList is sorted in ascending order
-		 *   - φ varies smoothly with density
-		 */
-
-		int n = rhoList.size();  // number of available data points
-
-		// --- Lower boundary ---
-		// If rho is below the minimum sampled density, return the first φ value
-		if (rho <= rhoList.get(0)) {
-			return volumefractionList.get(0);
-		}
-
-		// --- Upper boundary ---
-		// If rho is above the maximum sampled density, return the last φ value
-		if (rho >= rhoList.get(n - 1)) {
-			return volumefractionList.get(n - 1);
-		}
-
-		// --- Find the interval containing rho ---
-		for (int i = 0; i < n - 1; i++) {
-
-			double rho1 = rhoList.get(i);       // lower density bound
-			double rho2 = rhoList.get(i + 1);   // upper density bound
-
-			// Check if rho lies within this interval
-			if (rho >= rho1 && rho <= rho2) {
-
-				double phi1 = volumefractionList.get(i);     // φ at rho1
-				double phi2 = volumefractionList.get(i + 1); // φ at rho2
-
-				// Linear interpolation of φ
-				return phi1 + (rho - rho1) * (phi2 - phi1) / (rho2 - rho1);
-			}
-		}
-
-		// --- Fallback ---
-		// Return last value as a safety measure (should rarely be reached)
-		return volumefractionList.get(n - 1);
 	}
 
 	private double[] fitPoly(double[] Y, double[] phi0Arr, int nPts, int degree) {
@@ -829,13 +626,11 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 				dryVolFracs.add(dryVolFrac);
 
 				// store FR per volume (state specific)
-				floryFperVol = particles.meanFreeEnergy() * (particles.N / particles.totalVol);
+
 				// System.out.println("phi0 = " + dryVolFrac);
 				// System.out.println("meanFreeEnergy per particle = " + particles.meanFreeEnergy());
 				// System.out.println("N/totalVol = " + (particles.N / particles.totalVol));
 				// System.out.println("F_FR per volume = " + floryFperVol);
-
-				floryFperVolList.add(floryFperVol);
 
 				// store Ideal term 
 				double stirlingApprox = (0.75 / Math.PI) * dryVolFrac
@@ -922,7 +717,10 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 				fExPerVolList.set(i, fEx);
 
 				// total free energy per volume
-				double fTotal = floryFperVolList.get(i) + idealFreeEnergyList.get(i) + fEx; // F_total/V = F_FR/V + F_ideal/V + F_ex/V
+				double alpha_i      = swellingRatioList.get(i);
+				double rho_i        = rhoList.get(i);
+				double fFR_analytic = floryRehnerFreeEnergy(alpha_i, rho_i);
+				double fTotal       = fFR_analytic + idealFreeEnergyList.get(i) + fEx;
 				totalSums.set(i, fTotal);
 
 				// FR contribution to Z (in Z-units)
@@ -958,9 +756,8 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 				double rhoNext = rhoList.get(i + 1);
 				double rhoPrev = rhoList.get(i - 1);
 
-				double fFRNext = floryFperVolList.get(i + 1);
-				double fFRPrev = floryFperVolList.get(i - 1);
-
+				double fFRNext = floryRehnerFreeEnergy(swellingRatioList.get(i + 1), rhoList.get(i + 1));
+				double fFRPrev = floryRehnerFreeEnergy(swellingRatioList.get(i - 1), rhoList.get(i - 1));
 				double muFR = (fFRNext - fFRPrev) / (rhoNext - rhoPrev);
 
 				double muTotal = muIdeal + muEx + muFR;
@@ -1005,7 +802,7 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 		control.setValue("chi", 0); // Flory interaction parameter
         control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0.05);
+		control.setValue("Radius change tolerance", 0);
 		control.setValue("Max virial power", 1); // number of virial coefficients to fit (B3 to B_{maxPower+2})
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples 
@@ -1184,7 +981,7 @@ public class HertzSpheresLiquidVirialCoefficient_V2App extends AbstractSimulatio
 				double FtotV = totalSums.get(i);
 				double FidV = idealFreeEnergyList.get(i);
 				double FexV = fExPerVolList.get(i);
-				double FfrV = floryFperVolList.get(i);
+				double FfrV = floryRehnerFreeEnergy(swellingRatioList.get(i), rhoList.get(i));
 
 				double qMelting = (uPairPerVolList.get(i) - FtotV + 1.50);
 

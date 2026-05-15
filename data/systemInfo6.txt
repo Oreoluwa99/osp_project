@@ -11,10 +11,10 @@ MC steps: 100000
 Equilibration steps: 10000.0
 Snapshot interval: 100
 Displacement tolerance: 0.1
-Particle radius change tolerance: 0.05
+Particle radius change tolerance: 0.0
 Particle radius bin width: 0.001
 g(r) bin width: 0.005
-Mean pair energy <E_pair>/N [kT]: 7.816830578875564
-Mean pressure PV/NkT: 30.389759342240502
+Mean pair energy <E_pair>/N [kT]: 2.9043935798878633
+Mean pressure PV/NkT: 19.03961323972235
 
-Mean free energy per particle <F>/N [kT]: 105.832122458873
+Mean free energy per particle <F>/N [kT]: 0.0

@@ -563,20 +563,20 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.0016); 
+		control.setValue("DryVolFracStart", 0.0014); 
 		control.setValue("DryVolFrac Max", 0.0034); 
-		control.setValue("DryVolFrac increment", 0.00001);
+		control.setValue("DryVolFrac increment", 0.00005128); // for 40 data points between 0.0014 and 0.0034
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
 		control.setValue("N", 108); // number of particles
-		control.setValue("x-link fraction", 0.00005);
+		control.setValue("x-link fraction", 0.00003);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
 		control.setValue("Young's calibration", 1.0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.1);
-		control.setValue("Radius change tolerance", 0.05);
+		control.setValue("Radius change tolerance", 0);
 		control.setValue("Delay", 10000); // steps after which statistics collection starts
 		control.setValue("Snapshot interval", 100); // steps separating successive samples
 		control.setValue("Stop", 100000); // steps after which statistics collection stops
@@ -684,7 +684,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet_xlink_5e-5" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Hertzian_Spheres/Free_Energy_Facet_xlink_5e-5" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"
