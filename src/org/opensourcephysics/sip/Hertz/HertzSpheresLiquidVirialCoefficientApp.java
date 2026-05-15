@@ -2,7 +2,7 @@ package org.opensourcephysics.sip.Hertz;
 
 import java.awt.Color;
 import java.text.DecimalFormat;
-
+import java.util.Random;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -261,6 +261,11 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 				// measured EOS
 				double Z = particles.meanPressure();
 
+				System.out.println("phi0 = " + dryVolFrac
+					+ " | Z_measured = " + Z
+					+ " | rho = " + rho
+					+ " | alpha = " + alpha);
+
 				// Compute B2 
 				double B2;
 					
@@ -294,6 +299,12 @@ public class HertzSpheresLiquidVirialCoefficientApp extends AbstractSimulation {
 
 				// store FR per volume (state specific)
 				floryFperVol = particles.meanFreeEnergy() * (particles.N / particles.totalVol);
+
+				// System.out.println("phi0 = " + dryVolFrac);
+				// System.out.println("meanFreeEnergy per particle = " + particles.meanFreeEnergy());
+				// System.out.println("N/totalVol = " + (particles.N / particles.totalVol));
+				// System.out.println("F_FR per volume = " + floryFperVol);
+
 				floryFperVolList.add(floryFperVol);
 
 				// store Ideal term 

@@ -563,13 +563,13 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 	public void reset() {
 		enableStepsPerDisplay(true);
 
-		control.setValue("DryVolFracStart", 0.0024); 
+		control.setValue("DryVolFracStart", 0.0016); 
 		control.setValue("DryVolFrac Max", 0.0034); 
 		control.setValue("DryVolFrac increment", 0.00001);
 		control.setValue("Initial configuration", "FCC");
 		// control.setValue("Spring constant", 10000); // Spring constant: 2.035 for alpha/KT = 100
 		control.setValue("N", 108); // number of particles
-		control.setValue("x-link fraction", 0.00004);
+		control.setValue("x-link fraction", 0.00005);
 		// control.setValue("N", 500); for FCC lattice, N/4 should be a perfect cube
 		control.setValue("Dry radius [nm]", 50);
 		control.setValue("Young's calibration", 1.0); // 10-1000
@@ -684,7 +684,7 @@ public class HertzSpheresSolidPhaseApp extends AbstractSimulation {
 
 		// 3. Write Facet_data to data/APS_2026/Facet/Facet_data*.txt
 		try {
-			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet_xlink_4e-5" + particles.fileExtension + ".txt");
+			File outputFile = new File("data/APS_2026/Solid_Phase/Facet/Free_Energy_Facet_xlink_5e-5" + particles.fileExtension + ".txt");
 			System.out.println("Output file path: " + outputFile.getAbsolutePath());  // Debug log
 
 			File outputDir = outputFile.getParentFile();  // "data/APS_2026/Facet/"

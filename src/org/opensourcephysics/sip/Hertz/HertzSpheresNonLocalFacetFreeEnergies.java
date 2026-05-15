@@ -1,6 +1,6 @@
 /**
  * HertzSpheresFCCNearestNeighbors.java
- * 
+ *
  * This class simulates microgel particles arranged on a Face-Centered Cubic (FCC) lattice.
  * It performs Monte Carlo simulations where each microgel interacts only with its 12 nearest neighbors.
  *
@@ -775,6 +775,9 @@ public class HertzSpheresNonLocalFacetFreeEnergies {
 
                   // virial: x·f + y·f + z·f = (2.5/sigma)*derivPart/r * r2  = (2.5/sigma)*derivPart*r
                   virialSum += (twoPointFive / sigma) * derivPart * r;
+               }
+               else {
+                  pairEnergy[i][j] = 0.0; // no interaction
                }
          }
 

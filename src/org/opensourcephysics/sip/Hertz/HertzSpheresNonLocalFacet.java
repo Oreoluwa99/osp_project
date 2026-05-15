@@ -80,7 +80,7 @@
       public double density;
       public double squaredDisplacement, squaredDisplacementSum;
       public double oldFloryFR, newFloryFR; // Old and new Flory-Rehner free energy
-      public Random random = new Random(); // Random number generator for Monte Carlo moves
+      public Random random = new Random(12345); // Random number generator for Monte Carlo moves
       public double volOfMicrogel[]; //volume of each microgel
       // Arrays to hold Flory-Rehner free energy for microgels after a move (for J and I)
       public double floryFRJAfterMove[], floryFRJBeforeMove[];
@@ -93,8 +93,6 @@
       public double totalVolFrac;
       public double nonOverlappingVol, volumeFraction;
       public double modifiedSwellingRatioAccumulator;
-
-      
 
       /**
        * Initialize the model.
@@ -313,9 +311,9 @@
                for (iz = 0; iz < 2*nx; iz++) { // loop through particles in a layer
                   if (i < N) { // check for remaining particles
                      if ((ix+iy+iz)%2 == 0) { // check for remaining particles
-                        x[i] = PBC.position(ix * d/2. + (Math.random()-0.5) * d, side);
-                        y[i] = PBC.position(iy * d/2. + (Math.random()-0.5) * d, side);
-                        z[i] = PBC.position(iz * d/2. + (Math.random()-0.5) * d, side);
+                        x[i] = PBC.position(ix * d/2. + (random.nextDouble()-0.5) * d, side);
+                        y[i] = PBC.position(iy * d/2. + (random.nextDouble()-0.5) * d, side);
+                        z[i] = PBC.position(iz * d/2. + (random.nextDouble()-0.5) * d, side);
                         i++;
                      }
                   }
@@ -344,9 +342,9 @@
                for (iz = 0; iz < 2*nx; iz++) { // loop through particles in a layer
                   if (i < N) { // check for remaining particles
                      if ((ix*iy*iz)%2 == 1 || (ix%2 == 0 && iy%2 == 0 && iz%2 ==0)) { // check for remaining particles
-                        x[i] = PBC.position(ix * d/2. + (Math.random()-0.5) * d, side);
-                        y[i] = PBC.position(iy * d/2. + (Math.random()-0.5) * d, side);
-                        z[i] = PBC.position(iz * d/2. + (Math.random()-0.5) * d, side);
+                        x[i] = PBC.position(ix * d/2. + (random.nextDouble()-0.5) * d, side);
+                        y[i] = PBC.position(iy * d/2. + (random.nextDouble()-0.5) * d, side);
+                        z[i] = PBC.position(iz * d/2. + (random.nextDouble()-0.5) * d, side);
                         i++;
                      }
                   }
@@ -428,10 +426,10 @@
             // Update the old free energy for the current state before making the trial move
             double oldFreeEnergyI = floryFRBeforeMove[i];
 
-            dxtrial = tolerance*2.*(Math.random()-0.5);
-            dytrial = tolerance*2.*(Math.random()-0.5);
-            dztrial = tolerance*2.*(Math.random()-0.5);
-            datrial = atolerance*2.*(Math.random()-0.5);
+            dxtrial = tolerance*2.*(random.nextDouble()-0.5);
+            dytrial = tolerance*2.*(random.nextDouble()-0.5);
+            dztrial = tolerance*2.*(random.nextDouble()-0.5);
+            datrial = atolerance*2.*(random.nextDouble()-0.5);
 
             // Euclidean distance of trial displacements
             trialDisplacementDistance = (dxtrial*dxtrial)+(dytrial*dytrial)+(dztrial*dztrial);
@@ -530,7 +528,7 @@
             // de = lambda*(pairEnergySum-energy[i])+(1-lambda)*(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
             de = (pairEnergySum-energy[i])+(pairPotentialCorrection)+dFlory; // change in total energy due to trial move
 
-            if (Math.exp(-de) < Math.random()) { // Metropolis algorithm
+            if (Math.exp(-de) < random.nextDouble()) { // Metropolis algorithm
                x[i] -= dxtrial; //reject move
                y[i] -= dytrial;
                z[i] -= dztrial;

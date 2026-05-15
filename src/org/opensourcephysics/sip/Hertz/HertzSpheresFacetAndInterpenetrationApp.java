@@ -263,7 +263,7 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 		control.setValue("N", 32); // number of particles
 		control.setValue("Dry radius [nm]", 50);
 		control.setValue("x-link fraction", 0.001);
-		control.setValue("Young's calibration", 10); // 10-1000
+		control.setValue("Young's calibration", 0); // 10-1000
 		control.setValue("chi", 0); // Flory interaction parameter
 		control.setValue("Maximum radial distance", 10);
 		control.setValue("Displacement tolerance", 0.0);
@@ -389,7 +389,7 @@ public class HertzSpheresFacetAndInterpenetrationApp extends AbstractSimulation 
 		// }
 
 		try {
-			File outputFile = new File("data/Comprehensive_Report_Data/phi_vs_alpha/new_data/Microgel_FCC_12nn_no_displacement_Y_10"+particles.fileExtension+".txt");
+			File outputFile = new File("data/Comprehensive_Report_Data/phi_vs_alpha/Microgel_FCC_12nn_no_displacement_Y_0"+particles.fileExtension+".txt");
 			//File outputFile = new File("data/APS_2026/Penetration/PenetrationData_12nn"+particles.fileExtension+".txt");
 			//File outputFile = new File("data/ssf_and_rdf_data/longer_runs_for_RSC/facet_rdf_500K_steps"+particles.fileExtension+".txt");
 
