@@ -1,0 +1,19 @@
+Number of particles: 108
+Initial configuration: FCC
+Dry microgel radius [nm]: 50.0
+Box length [units of dry radius]: 53.02556710944485
+Number of monomers: 2916666.666666667
+Number of chains: 87.50000000000001
+Flory interaction parameter (chi): 0.0
+Young's calibration factor: 1.0
+x-link fraction: 3.0E-5
+Reservoir swelling ratio: 7.0053187131881725
+DryVolFrac increment: 3.42857E-5
+MC steps: 70000
+Equilibration steps: 7000.0
+Snapshot interval: 100
+Displacement tolerance: 0.1
+Particle radius change tolerance: 0.0
+Particle radius bin width: 0.001
+g(r) bin width: 0.005
+Mean pressure PV/NkT: 28.62629387127854
