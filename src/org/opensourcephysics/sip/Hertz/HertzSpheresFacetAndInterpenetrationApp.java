@@ -18,7 +18,7 @@
  *
  * Authors: Alan Denton and Oreoluwa Alade
  * Version: 4.6-08-24
- * Last Updated: September 29, 2024
+ * Last Updated: September 29, 2025
  */
 
 package org.opensourcephysics.sip.Hertz;

@@ -33,7 +33,7 @@
    import org.opensourcephysics.numerics.Function;
 
 
-   public class HertzSpheresNonLocalFacet {
+   public class HertzSpheresNonLocalFacetTest {
       public int N; // number of particles
       public String initConfig; // initial configuration of particles
       public int nx; // number of columns and rows in initial crystal lattice
@@ -146,7 +146,7 @@
          pairEnergyAccumulator = 0; //for the lamba = 1 system
          freeEnergyAccumulator = 0;
          virialAccumulator = 0;
-         //springEnergyAccumulator = 0;
+         springEnergyAccumulator = 0;
          boltzmannFactorAccumulator = 0;
          numberOfConfigurations = 0;
          squaredDisplacementAccumulator = 0;
@@ -491,6 +491,8 @@
 
                   }
                   else{//if they are not overlapping
+                     newPairEnergy[i][j] = 0.0;
+
                      capVolAfterTrialMove[i][j] = 0;
                      capVolAfterTrialMove[j][i] = 0;
 
@@ -611,9 +613,9 @@
                   }
                   else{
                      pairEnergy[i][j] = 0;
+                  }
                }
             }
-
             // Flory-Rehner single-particle free energy (associated with swelling)
             mixF = nMon*((a[i]*a[i]*a[i]-1)*Math.log(1-1/a[i]/a[i]/a[i])+chi*(1-1/a[i]/a[i]/a[i]));
             elasticF = 1.5*nMon*xLinkFrac*(a[i]*a[i]-Math.log(a[i])-1);
@@ -635,7 +637,7 @@
 
             // totalVolFrac += calculateVolumeFraction(); //call the calculateVolumeFraction method here
 
-      }
+         }
 
          totalPairEnergy *= 0.5; // correct for double counting pairs
 
@@ -654,17 +656,16 @@
                   // Accumulate the volume fraction
                   volFracAccumulator += calculateVolumeFraction();       
                   
-                  for (i = 0; i < N; i++) {
+                  for (int i = 0; i < N; i++) {
                      double Vm = (4.0/3.0)*Math.PI*Math.pow(a[i],3);
                      double Vc = capVolSumBeforeMoveArray[i];
                      modifiedSwellingRatioAccumulator += a[i]*Math.pow((Vm-Vc)/Vm, 1.0/3.0);
                   }
 
                }
-            }
          }
+         
       }
-
       // mean energy per particle [kT units]
       public double meanEnergy() {
          return energyAccumulator/N/numberOfConfigurations; // quantity <E>/N

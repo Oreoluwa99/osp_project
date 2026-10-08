@@ -30,7 +30,7 @@ import org.opensourcephysics.numerics.Root;
  * Edited by: Oreoluwa Alade
  *
  * Last Confirmed Working: September 2025
- * Framework: Open Source Physics (OSP)
+ * 
  */
 
 public class HertzSpheresInterpenetrationNearestNeigbour {
