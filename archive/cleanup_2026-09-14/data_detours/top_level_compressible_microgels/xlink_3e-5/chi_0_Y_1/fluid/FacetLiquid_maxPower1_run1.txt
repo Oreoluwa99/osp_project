@@ -1,0 +1,21 @@
+This fits B3 to B3 into the virial expansion since maxPower is set to 1.
+Number of particles: 108
+dryVolFracMax: 0.00161
+dryVolFracIncrement: 2.0E-4
+Initial configuration: FCC
+Dry microgel radius [nm]: 50.0
+Box length [units of dry radius]: 63.107351386036434
+Number of monomers: 2916666.666666667
+Number of chains: 87.50000000000001
+Flory interaction parameter (chi): 0.0
+Young's calibration factor: 1.0
+x-link fraction: 3.0E-5
+MC steps: 20000
+Equilibration steps: 10000.0
+Snapshot interval: 100
+Displacement tolerance: 0.1
+Particle radius change tolerance: 0.05
+Particle radius bin width: 0.001
+g(r) bin width: 0.005
+phi0, phi, rho, mu/kT, Z_measured, Z_virial_Fit, <F_total>/V, QMelting, <F_id>/V, <F_ex>/V, <F_FR>/V, <pairRadius>, <modifiedSwellingRatio>, Zeta, B2_rho, B2_phi0, B2_HS, B2*
+0.0014, 0.4811228477012633, 3.342253804929803E-4, -4.811159089469424, 2.1189619018287287, 2.647055486799689, -0.0024937323279717026, 1.5025443374659642, -0.0029991747196023524, 5.052463958617271E-4, 1.9599576892264253E-7, 7.034677407407404, 7.0043711625080745, 0.48129542307284257, 4117.975343500205, 983.0941971729048, 5832.854731379996, 0.7059965545423299

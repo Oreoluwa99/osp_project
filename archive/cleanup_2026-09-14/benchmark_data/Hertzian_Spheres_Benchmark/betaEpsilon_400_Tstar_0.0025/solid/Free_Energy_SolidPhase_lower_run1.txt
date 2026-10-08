@@ -1,0 +1,22 @@
+Starting reduced density rho*: 1.359
+Maximum reduced density rho*: 1.39
+Reduced-density increment: 0.01
+Number of particles: 108
+Initial configuration: FCC
+Dry microgel radius [nm]: 50.0
+Box length [units of dry radius]: 4.257964278406846
+Number of monomers: 0.0
+Flory interaction parameter (chi): 0.0
+Young's calibration factor: 1.0
+x-link fraction: 5.0E-5
+Reduced-density increment: 0.01
+MC steps: 20000
+Equilibration steps: 10000.0
+Snapshot interval: 100
+Displacement tolerance: 0.1
+Particle radius change tolerance: 0.0
+Particle radius bin width: 0.001
+g(r) bin width: 0.005
+rho, geometric_volume_fraction, mu_from_dF/kT, Z_from_dF_total, Pstar_from_dF_total, Z_virial_measured, Pstar_virial_measured, Z_einstein_contribution, Z_pair_contribution, Z_FR_contribution, <F_total>/V, <F_pair>/V, <S_solid>/V, <F_reference>/V, <F_FR>/V, radius, zeta, beta_u_Hertz_nn, SpringConstant, LindemannParameter, Tstar
+1.369, 0.7063231229946548, 17.218958390907552, 11.833876107397035, 16.20057639102654, 12.066455830523157, 16.5189780319862, 11.675841976141474, 0.15803413125556745, 0.0, 7.372177646125893, 0.567498905162958, -3.695693272074896, 6.804678740962935, 0.0, 0.5, 0.0, 0.0, 92.86978247300884, 0.12572005590686725, 0.0025
+1.379, 0.7111184337616685, 17.57124723553692, 12.091819211851735, 16.674618693143543, 12.367089804798866, 17.054216840817634, 11.447148065429033, 0.6446711464227344, 0.0, 7.5561312446618665, 0.5775630765832682, -3.8052237346541045, 6.978568168078598, 0.0, 0.5, 0.0, 0.0, 98.66692792590302, 0.12226709183637482, 0.0025

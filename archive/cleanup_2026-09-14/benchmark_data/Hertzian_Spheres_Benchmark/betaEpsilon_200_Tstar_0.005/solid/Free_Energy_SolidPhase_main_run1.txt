@@ -1,0 +1,22 @@
+Starting dry volume fraction: 1.592
+Maximum dry volume fraction: 1.623
+DryVolFrac increment: 0.01
+Number of particles: 108
+Initial configuration: FCC
+Dry microgel radius [nm]: 50.0
+Box length [units of dry radius]: 4.0448386334057895
+Number of monomers: 0.0
+Flory interaction parameter (chi): 0.0
+Young's calibration factor: 1.0
+x-link fraction: 5.0E-5
+DryVolFrac increment: 0.01
+MC steps: 200000
+Equilibration steps: 50000.0
+Snapshot interval: 100
+Displacement tolerance: 0.1
+Particle radius change tolerance: 0.0
+Particle radius bin width: 0.001
+g(r) bin width: 0.005
+phi0, phi, mu/kT, (PV/NkT)_from_dF_FR+dF_pair, (PV/NkT)_from_dF_total, (PV/NkT)_virial_measured, (PV/NkT)_virial+dF_total, (PV/NkT)_einstein, (PV/NkT)_pair_contribution, (PV/NkT)_FR_contribution, <F_total>/V, <F_pair>/V, EntropySolid, <F_reference>/V, <F_FR>/V, <alpha>, zeta, u_Hertz_nn, SpringConstant, LindemannParameter, kT/E
+1.602, 0.0, 21.49303580529409, 7.155654799115867, 15.088136634416665, 14.997311254117225, 30.085447888533892, 7.932481835300753, 7.155654799115867, 0.0, 10.260648471745636, 2.03421985226907, -5.29750602665084, 8.226428619476566, 0.0, 0.5, 0.0, 0.0, 103.64231531753869, 0.12540829045602916, 0.005
+1.612, 0.0, 21.71286176820697, 6.989991621534396, 15.212661153428177, 15.302735613125067, 30.515396766553245, 8.222669531893802, 6.989991621534396, 0.0, 10.478323391023412, 2.1038792929876537, -5.413401034119396, 8.374444098035758, 0.0, 0.5, 0.0, 0.0, 107.90568771495897, 0.12316107593779312, 0.005
