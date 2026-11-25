@@ -213,7 +213,7 @@ public class ConfinedMicrogelsApp extends AbstractSimulation {
 				control.println("Current dry volume fraction: " + dryVolFrac);
 				control.println("Dry volume fraction max: " + dryVolFracMax);
 				control.println("Dry volume fraction increment: " + particles.dphi);
-				control.println("Volume fraction phi: " + particles.calculateVolumeFraction());
+				control.println("Volume fraction phi: " + dryVolFrac);
 
 				dryVolFrac += particles.dphi;
 				particles.dryVolFrac = dryVolFrac;

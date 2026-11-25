@@ -1,0 +1,7 @@
+data/
+classes/
+*.class
+*.zip
+.DS_Store
+backup_src_before_encoding_fix/
+org.opensourcephysics.frames.Display3DFrame
